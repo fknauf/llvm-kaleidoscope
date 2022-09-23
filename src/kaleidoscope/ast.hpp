@@ -46,8 +46,8 @@ namespace kaleidoscope
         BinaryExprAST(char op, ExprAST LHS, ExprAST RHS);
 
         char getOp() const noexcept { return Op; }
-        ExprAST const *getLHS() const noexcept;
-        ExprAST const *getRHS() const noexcept;
+        ExprAST const &getLHS() const noexcept;
+        ExprAST const &getRHS() const noexcept;
     };
 
     /// CallExprAST - Expression class for function calls.
@@ -91,6 +91,9 @@ namespace kaleidoscope
         FunctionAST(PrototypeAST Proto,
                     ExprAST Body)
             : Proto(std::move(Proto)), Body(std::move(Body)) {}
+
+        PrototypeAST const &getProto() const noexcept { return Proto; }
+        ExprAST const &getBody() const noexcept { return Body; }
     };
 } // namespace kaleidoscope
 

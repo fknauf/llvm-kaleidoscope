@@ -1,5 +1,7 @@
 project(kaleidoscope)
 
+cmake_minimum_required(VERSION 3.24)
+
 set(CMAKE_BUILD_TYPE Debug)
 
-add_executable(parser_test ast.cpp lexer.cpp parser.cpp parser_test.cpp)
+add_subdirectory(src)

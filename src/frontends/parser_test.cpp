@@ -1,5 +1,5 @@
-#include "lexer.hpp"
-#include "parser.hpp"
+#include "kaleidoscope/lexer.hpp"
+#include "kaleidoscope/parser.hpp"
 
 #include <fstream>
 #include <iostream>

@@ -7,6 +7,6 @@ namespace kaleidoscope
           LHS(std::make_unique<ExprAST>(std::move(LHS))),
           RHS(std::make_unique<ExprAST>(std::move(RHS))) {}
 
-    ExprAST const *BinaryExprAST::getLHS() const noexcept { return LHS.get(); }
-    ExprAST const *BinaryExprAST::getRHS() const noexcept { return RHS.get(); }
+    ExprAST const &BinaryExprAST::getLHS() const noexcept { return *LHS; }
+    ExprAST const &BinaryExprAST::getRHS() const noexcept { return *RHS; }
 }
