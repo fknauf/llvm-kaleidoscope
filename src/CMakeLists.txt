@@ -8,9 +8,11 @@ add_library(kaleidoscope
             kaleidoscope/lexer.cpp
             kaleidoscope/parser.cpp
             kaleidoscope/codegen.cpp
+            kaleidoscope/optimizer.cpp
 )
 
 include_directories(BEFORE .)
 link_libraries(kaleidoscope)
-add_executable( parser_test frontends/parser_test.cpp)
-add_executable(codegen_test frontends/codegen_test.cpp)
+add_executable(   parser_test frontends/parser_test.cpp)
+add_executable(  codegen_test frontends/codegen_test.cpp)
+add_executable(optimizer_test frontends/optimizer_test.cpp)
