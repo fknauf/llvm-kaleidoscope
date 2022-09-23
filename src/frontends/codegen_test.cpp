@@ -36,6 +36,9 @@ private:
     }
 
 public:
+    CodeGenerationHandler(llvm::LLVMContext &context)
+        : codegen_(context) {}
+
     void HandleDefinition(Parser &p)
     {
         HandleParse(p, &Parser::ParseDefinition, "function definition");
@@ -63,9 +66,9 @@ private:
 namespace
 {
     /// top ::= definition | external | expression | ';'
-    static void MainLoop(Parser &p)
+    static void MainLoop(llvm::LLVMContext &llvmContext, Parser &p)
     {
-        CodeGenerationHandler codegen;
+        CodeGenerationHandler codegen(llvmContext);
 
         while (true)
         {
@@ -101,13 +104,15 @@ namespace
         using kaleidoscope::Lexer;
         using kaleidoscope::Parser;
 
+        llvm::LLVMContext llvmContext;
+
         Lexer lexer(in);
         Parser parser(lexer);
 
         std::cerr << "ready> " << std::flush;
         parser.getNextToken();
 
-        MainLoop(parser);
+        MainLoop(llvmContext, parser);
     }
 }
 

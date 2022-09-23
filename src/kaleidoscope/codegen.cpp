@@ -11,12 +11,19 @@ namespace kaleidoscope
     {
     }
 
-    CodeGenerator::CodeGenerator()
-        : TheContext(),
-          Builder(TheContext),
-          TheModule("", TheContext),
-          NamedValues()
+    CodeGenerator::CodeGenerator(llvm::LLVMContext &context)
+        : TheContext(context)
     {
+        stealModule();
+    }
+
+    std::unique_ptr<llvm::Module> CodeGenerator::stealModule()
+    {
+        std::unique_ptr<llvm::Module> replacement = std::make_unique<llvm::Module>("", TheContext);
+        TheModule.swap(replacement);
+        Builder = std::make_unique<llvm::IRBuilder<>>(TheContext);
+        NamedValues.clear();
+        return replacement;
     }
 
     llvm::Value *CodeGenerator::operator()(NumberExprAST const &expr)
@@ -44,18 +51,18 @@ namespace kaleidoscope
         switch (expr.getOp())
         {
         case '+':
-            return Builder.CreateFAdd(L, R, "addtmp");
+            return Builder->CreateFAdd(L, R, "addtmp");
         case '-':
-            return Builder.CreateFSub(L, R, "subtmp");
+            return Builder->CreateFSub(L, R, "subtmp");
         case '*':
-            return Builder.CreateFMul(L, R, "multmp");
+            return Builder->CreateFMul(L, R, "multmp");
         case '/':
-            return Builder.CreateFDiv(L, R, "divtmp");
+            return Builder->CreateFDiv(L, R, "divtmp");
         case '<':
         {
-            llvm::Value *C = Builder.CreateFCmpULT(L, R, "cmptmp");
+            llvm::Value *C = Builder->CreateFCmpULT(L, R, "cmptmp");
 
-            return Builder.CreateUIToFP(C, llvm::Type::getDoubleTy(TheContext), "booltmp");
+            return Builder->CreateUIToFP(C, llvm::Type::getDoubleTy(TheContext), "booltmp");
         }
         default:
             throw CodeGenerationError("invalid binary operator");
@@ -65,7 +72,7 @@ namespace kaleidoscope
     llvm::Value *CodeGenerator::operator()(CallExprAST const &expr)
     {
         // Look up the name in the global module table.
-        llvm::Function *CalleeF = TheModule.getFunction(expr.getCallee());
+        llvm::Function *CalleeF = TheModule->getFunction(expr.getCallee());
         if (!CalleeF)
             throw CodeGenerationError("Unknown function referenced: " + expr.getCallee());
 
@@ -79,7 +86,7 @@ namespace kaleidoscope
             ArgsV.push_back(std::visit(*this, arg));
         }
 
-        return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
+        return Builder->CreateCall(CalleeF, ArgsV, "calltmp");
     }
 
     llvm::Function *CodeGenerator::operator()(PrototypeAST const &expr)
@@ -87,7 +94,7 @@ namespace kaleidoscope
         std::vector<llvm::Type *> Doubles(expr.getArgs().size(), llvm::Type::getDoubleTy(TheContext));
 
         llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getDoubleTy(TheContext), Doubles, false);
-        llvm::Function *F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, expr.getName(), TheModule);
+        llvm::Function *F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, expr.getName(), *TheModule);
 
         std::size_t ix = 0;
         for (auto &arg : F->args())
@@ -105,7 +112,7 @@ namespace kaleidoscope
 
         try
         {
-            F = TheModule.getFunction(expr.getProto().getName());
+            F = TheModule->getFunction(expr.getProto().getName());
 
             if (F == nullptr)
             {
@@ -123,7 +130,7 @@ namespace kaleidoscope
             }
 
             llvm::BasicBlock *entryBlock = llvm::BasicBlock::Create(TheContext, "entry", F);
-            Builder.SetInsertPoint(entryBlock);
+            Builder->SetInsertPoint(entryBlock);
 
             NamedValues.clear();
             for (auto &arg : F->args())
@@ -132,7 +139,7 @@ namespace kaleidoscope
             }
 
             llvm::Value *bodyCode = std::visit(*this, expr.getBody());
-            Builder.CreateRet(bodyCode);
+            Builder->CreateRet(bodyCode);
 
             llvm::verifyFunction(*F);
 

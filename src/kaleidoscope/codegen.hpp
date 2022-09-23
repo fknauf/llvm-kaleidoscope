@@ -10,6 +10,7 @@
 #include <llvm/IR/Module.h>
 
 #include <map>
+#include <memory>
 #include <stdexcept>
 
 namespace kaleidoscope
@@ -23,7 +24,7 @@ namespace kaleidoscope
     class CodeGenerator
     {
     public:
-        CodeGenerator();
+        CodeGenerator(llvm::LLVMContext &context);
 
         llvm::Value *operator()(NumberExprAST const &expr);
         llvm::Value *operator()(VariableExprAST const &expr);
@@ -35,13 +36,15 @@ namespace kaleidoscope
 
         llvm::Module const &getModule() const
         {
-            return TheModule;
+            return *TheModule;
         }
 
+        std::unique_ptr<llvm::Module> stealModule();
+
     private:
-        llvm::LLVMContext TheContext;
-        llvm::IRBuilder<> Builder;
-        llvm::Module TheModule;
+        llvm::LLVMContext &TheContext;
+        std::unique_ptr<llvm::IRBuilder<>> Builder;
+        std::unique_ptr<llvm::Module> TheModule;
         std::map<std::string, llvm::Value *> NamedValues;
     };
 }
