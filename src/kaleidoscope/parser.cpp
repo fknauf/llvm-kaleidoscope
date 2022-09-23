@@ -180,7 +180,7 @@ namespace kaleidoscope
     {
         auto E = ParseExpression();
         // Make an anonymous proto.
-        PrototypeAST Proto{"", std::vector<std::string>()};
+        PrototypeAST Proto{"__anon_expr", std::vector<std::string>()};
         return {std::move(Proto), std::move(E)};
     }
 } // namespace kaleidoscope
