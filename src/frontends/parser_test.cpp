@@ -24,7 +24,7 @@ namespace
         }
     }
 
-    static void HandleExtern(Parser &p)
+    void HandleExtern(Parser &p)
     {
         try
         {
@@ -39,7 +39,7 @@ namespace
         }
     }
 
-    static void HandleTopLevelExpression(Parser &p)
+    void HandleTopLevelExpression(Parser &p)
     {
         // Evaluate a top-level expression into an anonymous function.
         try
@@ -85,19 +85,31 @@ namespace
             }
         }
     }
+
+    void MainParse(std::istream &in)
+    {
+        using kaleidoscope::Lexer;
+        using kaleidoscope::Parser;
+
+        Lexer lexer(in);
+        Parser parser(lexer);
+
+        std::cerr << "ready> " << std::flush;
+        parser.getNextToken();
+
+        MainLoop(parser);
+    }
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    using kaleidoscope::Lexer;
-    using kaleidoscope::Parser;
-
-    std::ifstream in("parser_test.input.txt");
-    Lexer lexer(in);
-    Parser parser(lexer);
-
-    std::cerr << "ready> " << std::flush;
-    parser.getNextToken();
-
-    MainLoop(parser);
+    if (argc > 1)
+    {
+        std::ifstream in(argv[1]);
+        MainParse(in);
+    }
+    else
+    {
+        MainParse(std::cin);
+    }
 }

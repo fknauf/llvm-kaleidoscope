@@ -7,7 +7,7 @@
 namespace kaleidoscope
 {
     CodeGenerationError::CodeGenerationError(std::string const &errMsg)
-        : runtime_error("Code generation error: " + errMsg)
+        : Error("Code generation error: " + errMsg)
     {
     }
 
@@ -147,7 +147,7 @@ namespace kaleidoscope
                 F->eraseFromParent();
             }
 
-            return nullptr;
+            throw;
         }
     }
 }

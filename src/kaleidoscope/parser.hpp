@@ -2,6 +2,7 @@
 #define INCLUDED_KALEIDOSCOPE_PARSER_HPP
 
 #include "ast.hpp"
+#include "error.hpp"
 #include "lexer.hpp"
 
 #include <stdexcept>
@@ -10,12 +11,10 @@
 
 namespace kaleidoscope
 {
-    class ParseError : public std::runtime_error
+    class ParseError : public Error
     {
     public:
-        ParseError(std::string const &errMsg) : runtime_error("Parse error: " + errMsg)
-        {
-        }
+        ParseError(std::string const &errMsg);
     };
 
     class Parser

@@ -5,6 +5,11 @@
 
 namespace kaleidoscope
 {
+    ParseError::ParseError(std::string const &errMsg)
+        : Error("Parse error: " + errMsg)
+    {
+    }
+
     Parser::Parser(Lexer &lexer) : lexer_(lexer)
     {
     }

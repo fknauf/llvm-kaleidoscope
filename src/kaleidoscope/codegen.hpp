@@ -2,6 +2,7 @@
 #define INCLUDED_KALEIDOSCOPE_CODEGEN_HPP
 
 #include "ast.hpp"
+#include "error.hpp"
 
 #include <llvm/IR/Value.h>
 #include <llvm/IR/LLVMContext.h>
@@ -13,7 +14,7 @@
 
 namespace kaleidoscope
 {
-    class CodeGenerationError : public std::runtime_error
+    class CodeGenerationError : public Error
     {
     public:
         CodeGenerationError(std::string const &errMsg);
@@ -31,6 +32,11 @@ namespace kaleidoscope
 
         llvm::Function *operator()(PrototypeAST const &expr);
         llvm::Function *operator()(FunctionAST const &expr);
+
+        llvm::Module const &getModule() const
+        {
+            return TheModule;
+        }
 
     private:
         llvm::LLVMContext TheContext;
