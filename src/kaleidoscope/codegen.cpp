@@ -11,24 +11,31 @@ namespace kaleidoscope
     {
     }
 
-    CodeGenerator::CodeGenerator(llvm::LLVMContext &context)
-        : TheContext(context)
+    CodeGenerator::CodeGenerator(llvm::DataLayout dataLayout)
+        : dataLayout(std::move(dataLayout)),
+          TheContext(std::make_unique<llvm::LLVMContext>())
     {
         stealModule();
     }
 
-    std::unique_ptr<llvm::Module> CodeGenerator::stealModule()
+    llvm::orc::ThreadSafeModule CodeGenerator::stealModule()
     {
-        std::unique_ptr<llvm::Module> replacement = std::make_unique<llvm::Module>("", TheContext);
-        TheModule.swap(replacement);
-        Builder = std::make_unique<llvm::IRBuilder<>>(TheContext);
+        auto ctx = std::make_unique<llvm::LLVMContext>();
+        auto mod = std::make_unique<llvm::Module>("", *ctx);
+
+        mod->setDataLayout(dataLayout);
+
+        TheContext.swap(ctx);
+        TheModule.swap(mod);
+        Builder = std::make_unique<llvm::IRBuilder<>>(*TheContext);
         NamedValues.clear();
-        return replacement;
+
+        return llvm::orc::ThreadSafeModule(std::move(mod), std::move(ctx));
     }
 
     llvm::Value *CodeGenerator::operator()(NumberExprAST const &expr)
     {
-        return llvm::ConstantFP::get(TheContext, llvm::APFloat(expr.getVal()));
+        return llvm::ConstantFP::get(*TheContext, llvm::APFloat(expr.getVal()));
     }
 
     llvm::Value *CodeGenerator::operator()(VariableExprAST const &expr)
@@ -62,7 +69,7 @@ namespace kaleidoscope
         {
             llvm::Value *C = Builder->CreateFCmpULT(L, R, "cmptmp");
 
-            return Builder->CreateUIToFP(C, llvm::Type::getDoubleTy(TheContext), "booltmp");
+            return Builder->CreateUIToFP(C, llvm::Type::getDoubleTy(*TheContext), "booltmp");
         }
         default:
             throw CodeGenerationError("invalid binary operator");
@@ -91,9 +98,9 @@ namespace kaleidoscope
 
     llvm::Function *CodeGenerator::operator()(PrototypeAST const &expr)
     {
-        std::vector<llvm::Type *> Doubles(expr.getArgs().size(), llvm::Type::getDoubleTy(TheContext));
+        std::vector<llvm::Type *> Doubles(expr.getArgs().size(), llvm::Type::getDoubleTy(*TheContext));
 
-        llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getDoubleTy(TheContext), Doubles, false);
+        llvm::FunctionType *FT = llvm::FunctionType::get(llvm::Type::getDoubleTy(*TheContext), Doubles, false);
         llvm::Function *F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, expr.getName(), *TheModule);
 
         std::size_t ix = 0;
@@ -129,7 +136,7 @@ namespace kaleidoscope
                 throw CodeGenerationError("Function " + expr.getProto().getName() + " is already defined.");
             }
 
-            llvm::BasicBlock *entryBlock = llvm::BasicBlock::Create(TheContext, "entry", F);
+            llvm::BasicBlock *entryBlock = llvm::BasicBlock::Create(*TheContext, "entry", F);
             Builder->SetInsertPoint(entryBlock);
 
             NamedValues.clear();

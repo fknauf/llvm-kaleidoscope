@@ -9,6 +9,7 @@ add_library(kaleidoscope
             kaleidoscope/parser.cpp
             kaleidoscope/codegen.cpp
             kaleidoscope/optimizer.cpp
+            kaleidoscope/jit.cpp
 )
 
 include_directories(BEFORE .)

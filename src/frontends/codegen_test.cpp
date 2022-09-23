@@ -36,9 +36,6 @@ private:
     }
 
 public:
-    CodeGenerationHandler(llvm::LLVMContext &context)
-        : codegen_(context) {}
-
     void HandleDefinition(Parser &p)
     {
         HandleParse(p, &Parser::ParseDefinition, "function definition");
@@ -68,7 +65,7 @@ namespace
     /// top ::= definition | external | expression | ';'
     static void MainLoop(llvm::LLVMContext &llvmContext, Parser &p)
     {
-        CodeGenerationHandler codegen(llvmContext);
+        CodeGenerationHandler codegen;
 
         while (true)
         {

@@ -8,6 +8,8 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/DataLayout.h>
+#include <llvm/ExecutionEngine/Orc/ExecutionUtils.h>
 
 #include <map>
 #include <memory>
@@ -24,7 +26,7 @@ namespace kaleidoscope
     class CodeGenerator
     {
     public:
-        CodeGenerator(llvm::LLVMContext &context);
+        CodeGenerator(llvm::DataLayout dataLayout = llvm::DataLayout(""));
 
         llvm::Value *operator()(NumberExprAST const &expr);
         llvm::Value *operator()(VariableExprAST const &expr);
@@ -39,10 +41,11 @@ namespace kaleidoscope
             return *TheModule;
         }
 
-        std::unique_ptr<llvm::Module> stealModule();
+        llvm::orc::ThreadSafeModule stealModule();
 
     private:
-        llvm::LLVMContext &TheContext;
+        llvm::DataLayout dataLayout;
+        std::unique_ptr<llvm::LLVMContext> TheContext;
         std::unique_ptr<llvm::IRBuilder<>> Builder;
         std::unique_ptr<llvm::Module> TheModule;
         std::map<std::string, llvm::Value *> NamedValues;

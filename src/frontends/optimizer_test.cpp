@@ -33,9 +33,6 @@ private:
     }
 
 public:
-    CodeGenerationHandler(llvm::LLVMContext &context)
-        : codegen_(context) {}
-
     void HandleDefinition(Parser &p)
     {
         HandleParse(p, &Parser::ParseDefinition);
@@ -51,7 +48,7 @@ public:
         HandleParse(p, &Parser::ParseTopLevelExpr);
     }
 
-    std::unique_ptr<llvm::Module> stealFinalModule()
+    llvm::orc::ThreadSafeModule stealFinalModule()
     {
         return codegen_.stealModule();
     }
@@ -65,7 +62,7 @@ namespace
     /// top ::= definition | external | expression | ';'
     static void MainLoop(llvm::LLVMContext &llvmContext, Parser &p)
     {
-        CodeGenerationHandler codegen(llvmContext);
+        CodeGenerationHandler codegen;
 
         while (true)
         {
@@ -73,15 +70,15 @@ namespace
             {
             case kaleidoscope::tok_eof:
             {
-                std::unique_ptr<llvm::Module> finalModule = codegen.stealFinalModule();
+                auto finalModule = codegen.stealFinalModule();
 
                 std::cerr << "------\nBEFORE\n------\n";
-                finalModule->print(llvm::errs(), nullptr);
+                finalModule.getModuleUnlocked()->print(llvm::errs(), nullptr);
 
-                kaleidoscope::optimizeModule(*finalModule);
+                kaleidoscope::optimizeModule(*finalModule.getModuleUnlocked());
 
                 std::cerr << "\n-----\nAFTER\n-----\n";
-                finalModule->print(llvm::errs(), nullptr);
+                finalModule.getModuleUnlocked()->print(llvm::errs(), nullptr);
                 return;
             }
             case kaleidoscope::tok_def:
