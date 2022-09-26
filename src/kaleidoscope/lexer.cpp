@@ -6,7 +6,15 @@
 
 namespace kaleidoscope
 {
-    Lexer::Lexer(std::istream &in) : in_(in) {}
+    Lexer::Lexer(std::istream &in)
+        : in_(in),
+          keywords_({{"def", tok_def},
+                     {"extern", tok_extern},
+                     {"if", tok_if},
+                     {"else", tok_else},
+                     {"then", tok_then}})
+    {
+    }
 
     Token Lexer::gettok()
     {
@@ -27,13 +35,10 @@ namespace kaleidoscope
                 identifier += LastChar;
             }
 
-            if (identifier == "def")
+            auto keyword_iter = keywords_.find(identifier);
+            if (keyword_iter != keywords_.end())
             {
-                return tok_def;
-            }
-            else if (identifier == "extern")
-            {
-                return tok_extern;
+                return keyword_iter->second;
             }
 
             return identifier;

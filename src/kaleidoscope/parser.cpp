@@ -10,7 +10,10 @@ namespace kaleidoscope
     {
     }
 
-    Parser::Parser(Lexer &lexer) : lexer_(lexer)
+    Parser::Parser(Lexer &lexer)
+        : lexer_(lexer),
+          binOpPrecedence{
+              {'<', 10}, {'+', 20}, {'-', 20}, {'*', 40}, {'/', 40}}
     {
     }
 
@@ -92,6 +95,10 @@ namespace kaleidoscope
         {
             return ParseNumberExpr();
         }
+        else if (CurTok.getType() == tok_if)
+        {
+            return ParseIfExpr();
+        }
         else if (CurTok == '(')
         {
             return ParseParenExpr();
@@ -135,6 +142,29 @@ namespace kaleidoscope
             // Merge LHS/RHS.
             LHS = BinaryExprAST(BinOp, std::move(LHS), std::move(RHS));
         } // loop around to the top of the while loop.
+    }
+
+    IfExprAST Parser::ParseIfExpr()
+    {
+        getNextToken();
+
+        // condition.
+        auto Cond = ParseExpression();
+        if (CurTok != tok_then)
+            throw ParseError("expected then");
+
+        getNextToken(); // eat the then
+
+        auto Then = ParseExpression();
+
+        if (CurTok != tok_else)
+            throw ParseError("expected else");
+
+        getNextToken();
+
+        auto Else = ParseExpression();
+
+        return {std::move(Cond), std::move(Then), std::move(Else)};
     }
 
     PrototypeAST Parser::ParsePrototype()

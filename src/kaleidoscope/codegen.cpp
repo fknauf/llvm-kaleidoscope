@@ -98,6 +98,41 @@ namespace kaleidoscope
         return Builder->CreateCall(CalleeF, ArgsV, "calltmp");
     }
 
+    llvm::Value *CodeGenerator::operator()(IfExprAST const &expr)
+    {
+        auto valCond = std::visit(*this, expr.getCondition());
+
+        auto irHead = Builder->CreateFCmpONE(valCond, llvm::ConstantFP::get(*TheContext, llvm::APFloat(0.0)), "ifcond");
+
+        auto parentFunction = Builder->GetInsertBlock()->getParent();
+
+        auto ThenBB = llvm::BasicBlock::Create(*TheContext, "then", parentFunction);
+        auto ElseBB = llvm::BasicBlock::Create(*TheContext, "else");
+        auto MergeBB = llvm::BasicBlock::Create(*TheContext, "ifcont");
+
+        Builder->CreateCondBr(irHead, ThenBB, ElseBB);
+
+        Builder->SetInsertPoint(ThenBB);
+        auto valThen = std::visit(*this, expr.getThenBranch());
+        Builder->CreateBr(MergeBB);
+        auto resultThen = Builder->GetInsertBlock();
+
+        parentFunction->getBasicBlockList().push_back(ElseBB);
+        Builder->SetInsertPoint(ElseBB);
+        auto valElse = std::visit(*this, expr.getElseBranch());
+        Builder->CreateBr(MergeBB);
+        auto resultElse = Builder->GetInsertBlock();
+
+        parentFunction->getBasicBlockList().push_back(MergeBB);
+        Builder->SetInsertPoint(MergeBB);
+        auto PN = Builder->CreatePHI(llvm::Type::getDoubleTy(*TheContext), 2, "iftmp");
+
+        PN->addIncoming(valThen, ThenBB);
+        PN->addIncoming(valElse, ElseBB);
+
+        return PN;
+    }
+
     llvm::Function *CodeGenerator::getFunction(std::string const &name, std::string const &errmsg_format)
     {
         llvm::Function *F = TheModule->getFunction(name);

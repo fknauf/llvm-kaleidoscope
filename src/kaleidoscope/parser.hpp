@@ -31,6 +31,8 @@ namespace kaleidoscope
         ExprAST ParsePrimary();
         ExprAST ParseExpression();
         ExprAST ParseBinOpRHS(int ExprPrec, ExprAST &&LHS);
+        IfExprAST ParseIfExpr();
+
         PrototypeAST ParsePrototype();
         FunctionAST ParseDefinition();
         PrototypeAST ParseExtern();
@@ -42,8 +44,7 @@ namespace kaleidoscope
         Lexer &lexer_;
         Token CurTok{tok_eof};
 
-        std::unordered_map<char, int> binOpPrecedence{
-            {'+', 20}, {'-', 20}, {'*', 40}, {'/', 40}};
+        std::unordered_map<char, int> binOpPrecedence;
     };
 } // namespace kaleidoscope
 

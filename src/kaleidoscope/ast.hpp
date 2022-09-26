@@ -12,8 +12,9 @@ namespace kaleidoscope
     class VariableExprAST;
     class BinaryExprAST;
     class CallExprAST;
+    class IfExprAST;
 
-    using ExprAST = std::variant<NumberExprAST, VariableExprAST, BinaryExprAST, CallExprAST>;
+    using ExprAST = std::variant<NumberExprAST, VariableExprAST, BinaryExprAST, CallExprAST, IfExprAST>;
 
     class NumberExprAST
     {
@@ -50,6 +51,19 @@ namespace kaleidoscope
         ExprAST const &getRHS() const noexcept;
     };
 
+    class IfExprAST
+    {
+    public:
+        IfExprAST(ExprAST Cond, ExprAST ThenBranch, ExprAST ElseBranch);
+
+        ExprAST const &getCondition() const noexcept;
+        ExprAST const &getThenBranch() const noexcept;
+        ExprAST const &getElseBranch() const noexcept;
+
+    private:
+        std::unique_ptr<ExprAST> condition_, thenBranch_, elseBranch_;
+    };
+
     /// CallExprAST - Expression class for function calls.
     class CallExprAST
     {
@@ -58,8 +72,7 @@ namespace kaleidoscope
 
     public:
         CallExprAST(const std::string &Callee,
-                    std::vector<ExprAST> Args)
-            : Callee(Callee), Args(std::move(Args)) {}
+                    std::vector<ExprAST> Args);
 
         auto const &getCallee() const noexcept { return Callee; }
         auto const &getArgs() const noexcept { return Args; }

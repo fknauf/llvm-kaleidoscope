@@ -5,5 +5,7 @@ Makefile
 cmake_install.cmake
 parser_test
 codegen_test
+optimizer_test
+jit_test
 *.a
 *.so

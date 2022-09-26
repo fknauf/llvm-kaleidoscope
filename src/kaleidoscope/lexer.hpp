@@ -4,6 +4,7 @@
 #include "token.hpp"
 
 #include <istream>
+#include <map>
 
 namespace kaleidoscope
 {
@@ -17,6 +18,8 @@ namespace kaleidoscope
     private:
         std::istream &in_;
         char LastChar = ' ';
+
+        std::map<std::string, TokenType> keywords_;
     };
 } // namespace kaleidoscope
 
