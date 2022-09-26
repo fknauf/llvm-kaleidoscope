@@ -1,0 +1,5 @@
+def add4(x) x + 4;
+add4(2);
+add4(5);
+extern cos(x);
+add4(cos(2));
