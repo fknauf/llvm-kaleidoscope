@@ -2,7 +2,12 @@
 
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Verifier.h>
+
+#include <boost/format.hpp>
+
 #include <iostream>
+#include <sstream>
+#include <utility>
 
 namespace kaleidoscope
 {
@@ -28,7 +33,6 @@ namespace kaleidoscope
         TheContext.swap(ctx);
         TheModule.swap(mod);
         Builder = std::make_unique<llvm::IRBuilder<>>(*TheContext);
-        NamedValues.clear();
 
         return llvm::orc::ThreadSafeModule(std::move(mod), std::move(ctx));
     }
@@ -79,9 +83,7 @@ namespace kaleidoscope
     llvm::Value *CodeGenerator::operator()(CallExprAST const &expr)
     {
         // Look up the name in the global module table.
-        llvm::Function *CalleeF = TheModule->getFunction(expr.getCallee());
-        if (!CalleeF)
-            throw CodeGenerationError("Unknown function referenced: " + expr.getCallee());
+        llvm::Function *CalleeF = getFunction(expr.getCallee(), "Unknown function referenced: %1%");
 
         // If argument mismatch error.
         if (CalleeF->arg_size() != expr.getArgs().size())
@@ -94,6 +96,28 @@ namespace kaleidoscope
         }
 
         return Builder->CreateCall(CalleeF, ArgsV, "calltmp");
+    }
+
+    llvm::Function *CodeGenerator::getFunction(std::string const &name, std::string const &errmsg_format)
+    {
+        llvm::Function *F = TheModule->getFunction(name);
+
+        if (F)
+        {
+            return F;
+        }
+
+        auto FI = FunctionProtos.find(name);
+
+        if (FI != FunctionProtos.end())
+        {
+            return (*this)(FI->second);
+        }
+
+        std::ostringstream formatter;
+        formatter << boost::format(errmsg_format) % name;
+
+        throw CodeGenerationError(formatter.str());
     }
 
     llvm::Function *CodeGenerator::operator()(PrototypeAST const &expr)
@@ -113,28 +137,19 @@ namespace kaleidoscope
         return F;
     }
 
+    void CodeGenerator::registerExtern(PrototypeAST ast)
+    {
+        FunctionProtos.insert_or_assign(ast.getName(), ast);
+    }
+
     llvm::Function *CodeGenerator::operator()(FunctionAST const &expr)
     {
         llvm::Function *F = nullptr;
 
         try
         {
-            F = TheModule->getFunction(expr.getProto().getName());
-
-            if (F == nullptr)
-            {
-                F = (*this)(expr.getProto());
-            }
-
-            if (F == nullptr)
-            {
-                throw CodeGenerationError("Could not create function " + expr.getProto().getName());
-            }
-
-            if (!F->empty())
-            {
-                throw CodeGenerationError("Function " + expr.getProto().getName() + " is already defined.");
-            }
+            registerExtern(expr.getProto());
+            F = getFunction(expr.getProto().getName(), "Could not create function %1%");
 
             llvm::BasicBlock *entryBlock = llvm::BasicBlock::Create(*TheContext, "entry", F);
             Builder->SetInsertPoint(entryBlock);

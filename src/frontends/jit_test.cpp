@@ -20,13 +20,17 @@ using kaleidoscope::Parser;
 class JITHandler
 {
 private:
-    template <typename T>
-    void HandleParse(Parser &p, T (Parser::*parseFunction)())
+    template <typename T, typename F>
+    void HandleParse(Parser &p,
+                     T (Parser::*parseFunction)(),
+                     F &&irHandler)
     {
         try
         {
             auto ast = (p.*parseFunction)();
             auto ir = codegen_(ast);
+
+            irHandler(ast, ir);
         }
         catch (Error const &e)
         {
@@ -45,21 +49,21 @@ public:
 
     void HandleDefinition(Parser &p)
     {
-        HandleParse(p, &Parser::ParseDefinition);
+        HandleParse(
+            p, &Parser::ParseDefinition, [this](auto &ast, auto &ir)
+            { auto H = jitCompiler_->addModule(codegen_.stealModule()); });
     }
 
     void HandleExtern(Parser &p)
     {
-        HandleParse(p, &Parser::ParseExtern);
+        HandleParse(p, &Parser::ParseExtern, [this](auto &ast, auto &ir)
+                    { codegen_.registerExtern(ast); });
     }
 
     void HandleTopLevelExpression(Parser &p)
     {
-        try
-        {
-            auto ast = p.ParseTopLevelExpr();
-            auto ir = codegen_(ast);
-
+        HandleParse(p, &Parser::ParseTopLevelExpr, [this](auto &ast, auto &ir)
+                    {
             auto RT = jitCompiler_->getMainJITDylib().createResourceTracker();
             auto H = jitCompiler_->addModule(codegen_.stealModule(), RT);
 
@@ -68,13 +72,7 @@ public:
 
             std::cerr << "Evaluated to " << FP() << std::endl;
 
-            ExitOnErr(RT->remove());
-        }
-        catch (Error const &e)
-        {
-            std::cerr << e.what() << std::endl;
-            p.getNextToken();
-        }
+            ExitOnErr(RT->remove()); });
     }
 
     auto stealFinalModule()

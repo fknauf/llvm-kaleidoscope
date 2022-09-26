@@ -43,12 +43,17 @@ namespace kaleidoscope
 
         llvm::orc::ThreadSafeModule stealModule();
 
+        void registerExtern(PrototypeAST ast);
+
     private:
+        llvm::Function *getFunction(std::string const &name, std::string const &errmsg_format);
+
         llvm::DataLayout dataLayout;
         std::unique_ptr<llvm::LLVMContext> TheContext;
         std::unique_ptr<llvm::IRBuilder<>> Builder;
         std::unique_ptr<llvm::Module> TheModule;
         std::map<std::string, llvm::Value *> NamedValues;
+        std::map<std::string, PrototypeAST> FunctionProtos;
     };
 }
 
