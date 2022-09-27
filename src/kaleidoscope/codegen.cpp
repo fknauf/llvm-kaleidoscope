@@ -136,6 +136,60 @@ namespace kaleidoscope
         return PN;
     }
 
+    llvm::Value *CodeGenerator::operator()(ForExprAST const &expr)
+    {
+        auto startVal = std::visit(*this, expr.getStart());
+
+        auto TheFunction = Builder->GetInsertBlock()->getParent();
+        auto PreheaderBB = Builder->GetInsertBlock();
+        auto LoopBB = llvm::BasicBlock::Create(*TheContext, "loop", TheFunction);
+
+        // explicit fall-through from current to loop. Implicit is not allowed.
+        Builder->CreateBr(LoopBB);
+        Builder->SetInsertPoint(LoopBB);
+
+        // Phi node for variable, first input is the start value. Second will be the loop counter
+        auto Variable = Builder->CreatePHI(llvm::Type::getDoubleTy(*TheContext), 2, expr.getVarName().c_str());
+        Variable->addIncoming(startVal, PreheaderBB);
+
+        llvm::Value *oldVal = NamedValues[expr.getVarName()];
+        NamedValues[expr.getVarName()] = Variable;
+
+        std::visit(*this, expr.getBody());
+
+        llvm::Value *StepVal = nullptr;
+        if (expr.getStep())
+        {
+            StepVal = std::visit(*this, *expr.getStep());
+        }
+        else
+        {
+            StepVal = llvm::ConstantFP::get(*TheContext, llvm::APFloat(1.0));
+        }
+
+        llvm::Value *nextVar = Builder->CreateFAdd(Variable, StepVal, "nextVar");
+        llvm::Value *endVal = std::visit(*this, expr.getEnd());
+        llvm::Value *endCond = Builder->CreateFCmpONE(endVal, llvm::ConstantFP::get(*TheContext, llvm::APFloat(0.0)), "loopcond");
+
+        auto LoopEndBB = Builder->GetInsertBlock();
+        auto AfterBB = llvm::BasicBlock::Create(*TheContext, "afterloop", TheFunction);
+        Builder->CreateCondBr(endCond, LoopBB, AfterBB);
+        Builder->SetInsertPoint(AfterBB);
+
+        Variable->addIncoming(nextVar, LoopEndBB);
+
+        if (oldVal)
+        {
+            NamedValues[expr.getVarName()] = oldVal;
+        }
+        else
+        {
+            NamedValues.erase(expr.getVarName());
+        }
+
+        return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*TheContext));
+    }
+
     llvm::Function *CodeGenerator::getFunction(std::string const &name, std::string const &errmsg_format)
     {
         llvm::Function *F = TheModule->getFunction(name);

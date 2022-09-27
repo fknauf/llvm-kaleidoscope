@@ -42,6 +42,10 @@ namespace kaleidoscope
     private:
         int GetTokPrecedence() const;
 
+        std::string expectIdentifier(std::string const &errMsg);
+        void expectChar(char expected, std::string const &errMsg);
+        void expectKeyword(TokenType expected, std::string const &errMsg);
+
         Lexer &lexer_;
         Token CurTok{tok_eof};
 

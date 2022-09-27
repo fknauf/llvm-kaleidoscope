@@ -32,6 +32,39 @@ namespace kaleidoscope
         return -1;
     }
 
+    std::string Parser::expectIdentifier(std::string const &errMsg)
+    {
+        if (CurTok.getType() != tok_identifier)
+        {
+            throw ParseError(errMsg);
+        }
+
+        std::string result = CurTok.getIdentifierValue();
+        getNextToken();
+
+        return result;
+    }
+
+    void Parser::expectChar(char expected, std::string const &errMsg)
+    {
+        if (CurTok != expected)
+        {
+            throw ParseError(errMsg);
+        }
+
+        getNextToken();
+    }
+
+    void Parser::expectKeyword(TokenType expected, std::string const &errMsg)
+    {
+        if (CurTok.getType() != expected)
+        {
+            throw ParseError(errMsg);
+        }
+
+        getNextToken();
+    }
+
     NumberExprAST Parser::ParseNumberExpr()
     {
         auto Result = CurTok.getNumValue();
@@ -44,9 +77,7 @@ namespace kaleidoscope
         getNextToken(); // eat (.
         auto V = ParseExpression();
 
-        if (CurTok != ')')
-            throw ParseError("expected ')'");
-        getNextToken(); // eat ).
+        expectChar(')', "expected ')'");
 
         return V;
     }
@@ -72,10 +103,7 @@ namespace kaleidoscope
                 if (CurTok == ')')
                     break;
 
-                if (CurTok != ',')
-                    throw ParseError("Expected ')' or ',' in argument list");
-
-                getNextToken();
+                expectChar(',', "Expected ')' or ',' in argument list");
             }
         }
 
@@ -98,6 +126,10 @@ namespace kaleidoscope
         else if (CurTok.getType() == tok_if)
         {
             return ParseIfExpr();
+        }
+        else if (CurTok.getType() == tok_for)
+        {
+            return ParseForExpr();
         }
         else if (CurTok == '(')
         {
@@ -150,18 +182,11 @@ namespace kaleidoscope
 
         // condition.
         auto Cond = ParseExpression();
-        if (CurTok != tok_then)
-            throw ParseError("expected then");
 
-        getNextToken(); // eat the then
-
+        expectKeyword(tok_then, "expected then");
         auto Then = ParseExpression();
 
-        if (CurTok != tok_else)
-            throw ParseError("expected else");
-
-        getNextToken();
-
+        expectKeyword(tok_else, "expected else");
         auto Else = ParseExpression();
 
         return {std::move(Cond), std::move(Then), std::move(Else)};
@@ -171,35 +196,41 @@ namespace kaleidoscope
     {
         getNextToken(); // consume for
 
-        if (CurTok.getType() != tok_identifier)
+        std::string varName = expectIdentifier("expected identifier after for");
+        expectChar('=', "expected = after for");
+
+        auto start = ParseExpression();
+        expectChar(',', "expected ',' after for start value");
+        auto end = ParseExpression();
+
+        std::optional<ExprAST> step;
+        if (CurTok == ',')
         {
-            throw ParseError("expected identifier after for");
+            getNextToken();
+            step = ParseExpression();
         }
 
-        std::string varName = CurTok.getIdentifierValue();
-        getNextToken();
+        expectKeyword(tok_in, "expected 'in' after for");
+        auto body = ParseExpression();
+
+        return ForExprAST(varName, std::move(start), std::move(end), std::move(step), std::move(body));
     }
 
     PrototypeAST Parser::ParsePrototype()
     {
-        if (CurTok.getType() != tok_identifier)
-            throw ParseError("Expected function name in prototype");
-
-        std::string FnName = CurTok.getIdentifierValue();
-        getNextToken();
-
-        if (CurTok != '(')
-            throw ParseError("Expected '(' in prototype");
+        std::string FnName = expectIdentifier("Expected function name in prototype");
+        expectChar('(', "Expected '(' in prototype");
 
         // Read the list of argument names.
         std::vector<std::string> ArgNames;
-        while (getNextToken().getType() == tok_identifier)
+        while (CurTok.getType() == tok_identifier)
+        {
             ArgNames.push_back(CurTok.getIdentifierValue());
-        if (CurTok != ')')
-            throw ParseError("Expected ')' in prototype");
+            getNextToken();
+        }
+        expectChar(')', "Expected ')' in prototype");
 
         // success.
-        getNextToken(); // eat ')'.
 
         return PrototypeAST(FnName, std::move(ArgNames));
     }

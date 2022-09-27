@@ -7,11 +7,12 @@ set(CMAKE_CXX_STANDARD 20)
 link_libraries(LLVM-14)
 add_library(kaleidoscope
             kaleidoscope/ast.cpp
-            kaleidoscope/lexer.cpp
-            kaleidoscope/parser.cpp
             kaleidoscope/codegen.cpp
-            kaleidoscope/optimizer.cpp
             kaleidoscope/jit.cpp
+            kaleidoscope/lexer.cpp
+            kaleidoscope/optimizer.cpp
+            kaleidoscope/parser.cpp
+            kaleidoscope/system.cpp
 )
 
 include_directories(BEFORE .)
