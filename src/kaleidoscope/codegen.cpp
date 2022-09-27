@@ -107,6 +107,8 @@ namespace kaleidoscope
         auto parentFunction = Builder->GetInsertBlock()->getParent();
 
         auto ThenBB = llvm::BasicBlock::Create(*TheContext, "then", parentFunction);
+        // else, merge werden fuer die condition gebraucht, aber sollen erst nach allen Bestandteilen
+        // des then-Blocks an die Funktion angehangen werden. Darum hier ohne parentFunction-Parameter
         auto ElseBB = llvm::BasicBlock::Create(*TheContext, "else");
         auto MergeBB = llvm::BasicBlock::Create(*TheContext, "ifcont");
 
@@ -117,16 +119,17 @@ namespace kaleidoscope
         Builder->CreateBr(MergeBB);
         auto resultThen = Builder->GetInsertBlock();
 
+        // ElseBB an Parent-Funktion anhaengen, dann Inhalt generieren
         parentFunction->getBasicBlockList().push_back(ElseBB);
         Builder->SetInsertPoint(ElseBB);
         auto valElse = std::visit(*this, expr.getElseBranch());
         Builder->CreateBr(MergeBB);
         auto resultElse = Builder->GetInsertBlock();
 
+        // Selbes Spiel fuer Merge-Block
         parentFunction->getBasicBlockList().push_back(MergeBB);
         Builder->SetInsertPoint(MergeBB);
         auto PN = Builder->CreatePHI(llvm::Type::getDoubleTy(*TheContext), 2, "iftmp");
-
         PN->addIncoming(valThen, ThenBB);
         PN->addIncoming(valElse, ElseBB);
 
