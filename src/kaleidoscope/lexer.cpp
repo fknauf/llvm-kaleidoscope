@@ -12,7 +12,9 @@ namespace kaleidoscope
                      {"extern", tok_extern},
                      {"if", tok_if},
                      {"else", tok_else},
-                     {"then", tok_then}})
+                     {"then", tok_then},
+                     {"for", tok_for},
+                     {"in", tok_in}})
     {
     }
 

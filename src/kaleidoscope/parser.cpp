@@ -167,6 +167,19 @@ namespace kaleidoscope
         return {std::move(Cond), std::move(Then), std::move(Else)};
     }
 
+    ForExprAST Parser::ParseForExpr()
+    {
+        getNextToken(); // consume for
+
+        if (CurTok.getType() != tok_identifier)
+        {
+            throw ParseError("expected identifier after for");
+        }
+
+        std::string varName = CurTok.getIdentifierValue();
+        getNextToken();
+    }
+
     PrototypeAST Parser::ParsePrototype()
     {
         if (CurTok.getType() != tok_identifier)

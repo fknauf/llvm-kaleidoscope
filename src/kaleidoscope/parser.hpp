@@ -32,6 +32,7 @@ namespace kaleidoscope
         ExprAST ParseExpression();
         ExprAST ParseBinOpRHS(int ExprPrec, ExprAST &&LHS);
         IfExprAST ParseIfExpr();
+        ForExprAST ParseForExpr();
 
         PrototypeAST ParsePrototype();
         FunctionAST ParseDefinition();
