@@ -11,6 +11,7 @@ namespace kaleidoscope
 {
     class NumberExprAST;
     class VariableExprAST;
+    class UnaryExprAST;
     class BinaryExprAST;
     class CallExprAST;
     class IfExprAST;
@@ -18,6 +19,7 @@ namespace kaleidoscope
 
     using ExprAST = std::variant<NumberExprAST,
                                  VariableExprAST,
+                                 UnaryExprAST,
                                  BinaryExprAST,
                                  CallExprAST,
                                  IfExprAST,
@@ -42,6 +44,18 @@ namespace kaleidoscope
         VariableExprAST(const std::string &Name) : Name(Name) {}
 
         std::string const &getName() const noexcept { return Name; }
+    };
+
+    class UnaryExprAST
+    {
+        char Op;
+        std::unique_ptr<ExprAST> Operand;
+
+    public:
+        UnaryExprAST(char op, ExprAST opd);
+
+        char getOp() const noexcept { return Op; }
+        ExprAST const &getOperand() const noexcept;
     };
 
     /// BinaryExprAST - Expression class for a binary operator.

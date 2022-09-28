@@ -31,6 +31,7 @@ namespace kaleidoscope
 
         llvm::Value *operator()(NumberExprAST const &expr);
         llvm::Value *operator()(VariableExprAST const &expr);
+        llvm::Value *operator()(UnaryExprAST const &expr);
         llvm::Value *operator()(BinaryExprAST const &expr);
         llvm::Value *operator()(CallExprAST const &expr);
         llvm::Value *operator()(IfExprAST const &expr);

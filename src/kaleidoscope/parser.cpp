@@ -155,9 +155,24 @@ namespace kaleidoscope
 
     ExprAST Parser::ParseExpression()
     {
-        auto LHS = ParsePrimary();
+        auto LHS = ParseUnary();
 
         return ParseBinOpRHS(0, std::move(LHS));
+    }
+
+    ExprAST Parser::ParseUnary()
+    {
+        if (CurTok == '(' ||
+            CurTok == ',' ||
+            CurTok.getType() != tok_char)
+        {
+            return ParsePrimary();
+        }
+
+        char op = expectAscii("invalid unary operator %1%");
+        auto opd = ParseUnary();
+
+        return UnaryExprAST(op, std::move(opd));
     }
 
     ExprAST Parser::ParseBinOpRHS(int ExprPrec,
@@ -178,7 +193,7 @@ namespace kaleidoscope
             getNextToken(); // eat binop
 
             // Parse the primary expression after the binary operator.
-            auto RHS = ParsePrimary();
+            auto RHS = ParseUnary();
             int NextPrec = GetTokPrecedence();
             if (TokPrec < NextPrec)
             {
@@ -239,14 +254,17 @@ namespace kaleidoscope
         switch (CurTok.getType())
         {
         case tok_identifier:
-        {
             FnName = CurTok.getIdentifierValue();
             getNextToken();
             kind = 0;
             break;
-        }
+        case tok_unary:
+            getNextToken();
+            FnName = "unary";
+            FnName += expectAscii("Expected unary operator");
+            kind = 1;
+            break;
         case tok_binary:
-        {
             getNextToken();
             FnName = "binary";
             FnName += expectAscii("Expected binary operator");
@@ -257,7 +275,7 @@ namespace kaleidoscope
                 binprecedence = static_cast<int>(CurTok.getNumValue());
                 getNextToken();
             }
-        }
+            break;
         }
 
         expectChar('(', "Expected '(' in prototype");

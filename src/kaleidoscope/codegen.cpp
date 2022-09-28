@@ -55,6 +55,13 @@ namespace kaleidoscope
         return iter->second;
     }
 
+    llvm::Value *CodeGenerator::operator()(UnaryExprAST const &expr)
+    {
+        auto opd = std::visit(*this, expr.getOperand());
+        auto F = getFunction(std::string("unary") + expr.getOp(), "Unknown unary operator %1%");
+        return Builder->CreateCall(F, opd, "unop");
+    }
+
     llvm::Value *CodeGenerator::operator()(BinaryExprAST const &expr)
     {
         llvm::Value *L = std::visit(*this, expr.getLHS());

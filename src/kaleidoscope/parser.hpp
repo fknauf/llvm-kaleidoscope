@@ -30,6 +30,7 @@ namespace kaleidoscope
         ExprAST ParseIdentifierExpr();
         ExprAST ParsePrimary();
         ExprAST ParseExpression();
+        ExprAST ParseUnary();
         ExprAST ParseBinOpRHS(int ExprPrec, ExprAST &&LHS);
         IfExprAST ParseIfExpr();
         ForExprAST ParseForExpr();
