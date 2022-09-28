@@ -12,11 +12,12 @@ add_library(kaleidoscope
             kaleidoscope/lexer.cpp
             kaleidoscope/optimizer.cpp
             kaleidoscope/parser.cpp
-            kaleidoscope/system.cpp
 )
 
 include_directories(BEFORE .)
 link_libraries(kaleidoscope)
+set(CMAKE_ENABLE_EXPORTS 1)
+
 add_executable(   parser_test frontends/parser_test.cpp)
 add_executable(  codegen_test frontends/codegen_test.cpp)
 add_executable(optimizer_test frontends/optimizer_test.cpp)
