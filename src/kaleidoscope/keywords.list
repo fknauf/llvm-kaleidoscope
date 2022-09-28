@@ -1,0 +1,11 @@
+KEYWORD(def)
+KEYWORD(extern)
+KEYWORD(if)
+KEYWORD(else)
+KEYWORD(then)
+KEYWORD(for)
+KEYWORD(in)
+KEYWORD(unary)
+KEYWORD(binary)
+
+#undef KEYWORD

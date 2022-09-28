@@ -8,13 +8,10 @@ namespace kaleidoscope
 {
     Lexer::Lexer(std::istream &in)
         : in_(in),
-          keywords_({{"def", tok_def},
-                     {"extern", tok_extern},
-                     {"if", tok_if},
-                     {"else", tok_else},
-                     {"then", tok_then},
-                     {"for", tok_for},
-                     {"in", tok_in}})
+          keywords_({
+#define KEYWORD(kw) {#kw, tok_##kw},
+#include "keywords.list"
+          })
     {
     }
 

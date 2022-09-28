@@ -3,6 +3,7 @@
 
 #include "ast.hpp"
 #include "error.hpp"
+#include "parser.hpp"
 
 #include <llvm/IR/Value.h>
 #include <llvm/IR/LLVMContext.h>
@@ -26,7 +27,7 @@ namespace kaleidoscope
     class CodeGenerator
     {
     public:
-        CodeGenerator(llvm::DataLayout dataLayout = llvm::DataLayout(""));
+        CodeGenerator(Parser &p, llvm::DataLayout dataLayout = llvm::DataLayout(""));
 
         llvm::Value *operator()(NumberExprAST const &expr);
         llvm::Value *operator()(VariableExprAST const &expr);
@@ -50,6 +51,7 @@ namespace kaleidoscope
     private:
         llvm::Function *getFunction(std::string const &name, std::string const &errmsg_format);
 
+        Parser &TheParser;
         llvm::DataLayout dataLayout;
         std::unique_ptr<llvm::LLVMContext> TheContext;
         std::unique_ptr<llvm::IRBuilder<>> Builder;

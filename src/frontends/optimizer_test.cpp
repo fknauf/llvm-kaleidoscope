@@ -13,56 +13,61 @@ using kaleidoscope::Lexer;
 using kaleidoscope::ParseError;
 using kaleidoscope::Parser;
 
-class CodeGenerationHandler
-{
-private:
-    template <typename T>
-    void HandleParse(Parser &p, T (Parser::*parseFunction)())
-    {
-        try
-        {
-            auto ast = (p.*parseFunction)();
-            auto ir = codegen_(ast);
-        }
-        catch (Error const &e)
-        {
-            std::cerr << e.what() << std::endl;
-            // Skip token for error recovery.
-            p.getNextToken();
-        }
-    }
-
-public:
-    void HandleDefinition(Parser &p)
-    {
-        HandleParse(p, &Parser::ParseDefinition);
-    }
-
-    void HandleExtern(Parser &p)
-    {
-        HandleParse(p, &Parser::ParseExtern);
-    }
-
-    void HandleTopLevelExpression(Parser &p)
-    {
-        HandleParse(p, &Parser::ParseTopLevelExpr);
-    }
-
-    llvm::orc::ThreadSafeModule stealFinalModule()
-    {
-        return codegen_.stealModule();
-    }
-
-private:
-    CodeGenerator codegen_;
-};
-
 namespace
 {
+    class CodeGenerationHandler
+    {
+    private:
+        template <typename T>
+        void HandleParse(Parser &p, T (Parser::*parseFunction)())
+        {
+            try
+            {
+                auto ast = (p.*parseFunction)();
+                auto ir = codegen_(ast);
+            }
+            catch (Error const &e)
+            {
+                std::cerr << e.what() << std::endl;
+                // Skip token for error recovery.
+                p.getNextToken();
+            }
+        }
+
+    public:
+        CodeGenerationHandler(Parser &p)
+            : codegen_(p)
+        {
+        }
+
+        void HandleDefinition(Parser &p)
+        {
+            HandleParse(p, &Parser::ParseDefinition);
+        }
+
+        void HandleExtern(Parser &p)
+        {
+            HandleParse(p, &Parser::ParseExtern);
+        }
+
+        void HandleTopLevelExpression(Parser &p)
+        {
+            HandleParse(p, &Parser::ParseTopLevelExpr);
+        }
+
+        llvm::orc::ThreadSafeModule stealFinalModule()
+        {
+            return codegen_.stealModule();
+        }
+
+    private:
+        CodeGenerator codegen_;
+    };
+
     /// top ::= definition | external | expression | ';'
     static void MainLoop(llvm::LLVMContext &llvmContext, Parser &p)
     {
-        CodeGenerationHandler codegen;
+        CodeGenerationHandler codegen(p);
 
         while (true)
         {

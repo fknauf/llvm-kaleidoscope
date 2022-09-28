@@ -16,8 +16,9 @@ namespace kaleidoscope
     {
     }
 
-    CodeGenerator::CodeGenerator(llvm::DataLayout dataLayout)
-        : dataLayout(std::move(dataLayout)),
+    CodeGenerator::CodeGenerator(Parser &p, llvm::DataLayout dataLayout)
+        : TheParser(p),
+          dataLayout(std::move(dataLayout)),
           TheContext(std::make_unique<llvm::LLVMContext>())
     {
         stealModule();
@@ -76,8 +77,12 @@ namespace kaleidoscope
             return Builder->CreateUIToFP(C, llvm::Type::getDoubleTy(*TheContext), "booltmp");
         }
         default:
-            throw CodeGenerationError("invalid binary operator");
+            break;
         }
+
+        auto F = getFunction(std::string("binary") + expr.getOp(), "binary operator %1% not found!");
+
+        return Builder->CreateCall(F, {L, R}, "binop");
     }
 
     llvm::Value *CodeGenerator::operator()(CallExprAST const &expr)
@@ -243,6 +248,8 @@ namespace kaleidoscope
             registerExtern(expr.getProto());
             F = getFunction(expr.getProto().getName(), "Could not create function %1%");
 
+            TheParser.registerOperator(expr.getProto());
+
             llvm::BasicBlock *entryBlock = llvm::BasicBlock::Create(*TheContext, "entry", F);
             Builder->SetInsertPoint(entryBlock);
 
@@ -262,6 +269,8 @@ namespace kaleidoscope
         catch (CodeGenerationError const &e)
         {
             std::cerr << e.what() << std::endl;
+
+            TheParser.removeOperator(expr.getProto());
 
             if (F != nullptr)
             {

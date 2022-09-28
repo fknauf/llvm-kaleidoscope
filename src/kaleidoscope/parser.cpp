@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <cctype>
 
 namespace kaleidoscope
 {
@@ -40,6 +41,19 @@ namespace kaleidoscope
         }
 
         std::string result = CurTok.getIdentifierValue();
+        getNextToken();
+
+        return result;
+    }
+
+    char Parser::expectAscii(std::string const &errMsg)
+    {
+        if (CurTok.getType() != tok_char || !std::isprint(CurTok.getCharValue()))
+        {
+            throw ParseError(errMsg);
+        }
+
+        char result = CurTok.getCharValue();
         getNextToken();
 
         return result;
@@ -218,7 +232,34 @@ namespace kaleidoscope
 
     PrototypeAST Parser::ParsePrototype()
     {
-        std::string FnName = expectIdentifier("Expected function name in prototype");
+        int kind;
+        std::string FnName;
+        int binprecedence = 30;
+
+        switch (CurTok.getType())
+        {
+        case tok_identifier:
+        {
+            FnName = CurTok.getIdentifierValue();
+            getNextToken();
+            kind = 0;
+            break;
+        }
+        case tok_binary:
+        {
+            getNextToken();
+            FnName = "binary";
+            FnName += expectAscii("Expected binary operator");
+            kind = 2;
+
+            if (CurTok.getType() == tok_number)
+            {
+                binprecedence = static_cast<int>(CurTok.getNumValue());
+                getNextToken();
+            }
+        }
+        }
+
         expectChar('(', "Expected '(' in prototype");
 
         // Read the list of argument names.
@@ -230,9 +271,14 @@ namespace kaleidoscope
         }
         expectChar(')', "Expected ')' in prototype");
 
+        if (kind != 0 && ArgNames.size() != kind)
+        {
+            throw ParseError("Invalid number of operands for operator");
+        }
+
         // success.
 
-        return PrototypeAST(FnName, std::move(ArgNames));
+        return PrototypeAST(FnName, std::move(ArgNames), kind != 0, binprecedence);
     }
 
     FunctionAST Parser::ParseDefinition()
@@ -256,5 +302,20 @@ namespace kaleidoscope
         // Make an anonymous proto.
         PrototypeAST Proto{"__anon_expr", std::vector<std::string>()};
         return {std::move(Proto), std::move(E)};
+    }
+
+    void Parser::registerOperator(PrototypeAST const &operatorProto)
+    {
+        if (operatorProto.isBinaryOperator())
+        {
+            binOpPrecedence[operatorProto.getOperatorName()] = operatorProto.getBinaryPrecedence();
+        }
+    }
+    void Parser::removeOperator(PrototypeAST const &operatorProto)
+    {
+        if (operatorProto.isBinaryOperator())
+        {
+            binOpPrecedence.erase(operatorProto.getOperatorName());
+        }
     }
 } // namespace kaleidoscope

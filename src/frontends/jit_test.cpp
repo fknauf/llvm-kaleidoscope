@@ -17,53 +17,55 @@ using kaleidoscope::Lexer;
 using kaleidoscope::ParseError;
 using kaleidoscope::Parser;
 
-class JITHandler
+namespace
 {
-private:
-    template <typename T, typename F>
-    void HandleParse(Parser &p,
-                     T (Parser::*parseFunction)(),
-                     F &&irHandler)
+    class JITHandler
     {
-        try
+    private:
+        template <typename T, typename F>
+        void HandleParse(Parser &p,
+                         T (Parser::*parseFunction)(),
+                         F &&irHandler)
         {
-            auto ast = (p.*parseFunction)();
-            auto ir = codegen_(ast);
+            try
+            {
+                auto ast = (p.*parseFunction)();
+                auto ir = codegen_(ast);
 
-            irHandler(ast, ir);
+                irHandler(ast, ir);
+            }
+            catch (Error const &e)
+            {
+                std::cerr << e.what() << std::endl;
+                // Skip token for error recovery.
+                p.getNextToken();
+            }
         }
-        catch (Error const &e)
+
+    public:
+        JITHandler(llvm::LLVMContext &context, Parser &p)
+            : jitCompiler_(ExitOnErr(KaleidoscopeJIT::Create())),
+              codegen_(p, jitCompiler_->getDataLayout())
         {
-            std::cerr << e.what() << std::endl;
-            // Skip token for error recovery.
-            p.getNextToken();
         }
-    }
 
-public:
-    JITHandler(llvm::LLVMContext &context)
-        : jitCompiler_(ExitOnErr(KaleidoscopeJIT::Create())),
-          codegen_(jitCompiler_->getDataLayout())
-    {
-    }
+        void HandleDefinition(Parser &p)
+        {
+            HandleParse(
+                p, &Parser::ParseDefinition, [this](auto &ast, auto &ir)
+                { auto H = jitCompiler_->addModule(codegen_.stealModule()); });
+        }
 
-    void HandleDefinition(Parser &p)
-    {
-        HandleParse(
-            p, &Parser::ParseDefinition, [this](auto &ast, auto &ir)
-            { auto H = jitCompiler_->addModule(codegen_.stealModule()); });
-    }
+        void HandleExtern(Parser &p)
+        {
+            HandleParse(p, &Parser::ParseExtern, [this](auto &ast, auto &ir)
+                        { codegen_.registerExtern(ast); });
+        }
 
-    void HandleExtern(Parser &p)
-    {
-        HandleParse(p, &Parser::ParseExtern, [this](auto &ast, auto &ir)
-                    { codegen_.registerExtern(ast); });
-    }
-
-    void HandleTopLevelExpression(Parser &p)
-    {
-        HandleParse(p, &Parser::ParseTopLevelExpr, [this](auto &ast, auto &ir)
-                    {
+        void HandleTopLevelExpression(Parser &p)
+        {
+            HandleParse(p, &Parser::ParseTopLevelExpr, [this](auto &ast, auto &ir)
+                        {
             auto RT = jitCompiler_->getMainJITDylib().createResourceTracker();
             auto H = jitCompiler_->addModule(codegen_.stealModule(), RT);
 
@@ -73,25 +75,23 @@ public:
             std::cerr << "Evaluated to " << FP() << std::endl;
 
             ExitOnErr(RT->remove()); });
-    }
+        }
 
-    auto stealFinalModule()
-    {
-        return codegen_.stealModule();
-    }
+        auto stealFinalModule()
+        {
+            return codegen_.stealModule();
+        }
 
-private:
-    llvm::ExitOnError ExitOnErr;
-    std::unique_ptr<KaleidoscopeJIT> jitCompiler_;
-    CodeGenerator codegen_;
-};
+    private:
+        llvm::ExitOnError ExitOnErr;
+        std::unique_ptr<KaleidoscopeJIT> jitCompiler_;
+        CodeGenerator codegen_;
+    };
 
-namespace
-{
     /// top ::= definition | external | expression | ';'
     static void MainLoop(llvm::LLVMContext &llvmContext, Parser &p)
     {
-        JITHandler handler(llvmContext);
+        JITHandler handler(llvmContext, p);
 
         while (true)
         {

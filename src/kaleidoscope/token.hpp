@@ -11,13 +11,8 @@ namespace kaleidoscope
     {
         // < 0 means no value associated with the token
         tok_eof = -1024,
-        tok_def,
-        tok_extern,
-        tok_if,
-        tok_else,
-        tok_then,
-        tok_for,
-        tok_in,
+#define KEYWORD(kw) tok_##kw,
+#include "keywords.list"
 
         // > 0: value associated
         tok_identifier = 1,

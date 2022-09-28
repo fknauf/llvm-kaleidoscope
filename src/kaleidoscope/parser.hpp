@@ -39,10 +39,14 @@ namespace kaleidoscope
         PrototypeAST ParseExtern();
         FunctionAST ParseTopLevelExpr();
 
+        void registerOperator(PrototypeAST const &operatorProto);
+        void removeOperator(PrototypeAST const &operatorProto);
+
     private:
         int GetTokPrecedence() const;
 
         std::string expectIdentifier(std::string const &errMsg);
+        char expectAscii(std::string const &errMsg);
         void expectChar(char expected, std::string const &errMsg);
         void expectKeyword(TokenType expected, std::string const &errMsg);
 

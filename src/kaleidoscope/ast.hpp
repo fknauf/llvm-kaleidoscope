@@ -109,13 +109,20 @@ namespace kaleidoscope
     {
         std::string Name;
         std::vector<std::string> Args;
+        bool isOperator_;
+        int precedence_;
 
     public:
-        PrototypeAST(const std::string &name, std::vector<std::string> Args)
-            : Name(name), Args(std::move(Args)) {}
+        PrototypeAST(const std::string &name, std::vector<std::string> Args, bool isOperator = false, int precedence = 0);
 
-        const std::string &getName() const { return Name; }
-        const std::vector<std::string> &getArgs() const { return Args; };
+        const std::string &getName() const noexcept;
+        const std::vector<std::string> &getArgs() const noexcept;
+
+        bool isOperator() const noexcept;
+        bool isUnaryOperator() const noexcept;
+        bool isBinaryOperator() const noexcept;
+        char getOperatorName() const noexcept;
+        int getBinaryPrecedence() const noexcept;
     };
 
     /// FunctionAST - This class represents a function definition itself.
