@@ -18,3 +18,5 @@ def printstar(n)
 
 # print 100 '*' characters
 printstar(100);
+extern printd(x);
+printd(42.3141)
