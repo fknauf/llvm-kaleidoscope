@@ -12,6 +12,7 @@ add_library(kaleidoscope
             kaleidoscope/lexer.cpp
             kaleidoscope/optimizer.cpp
             kaleidoscope/parser.cpp
+            kaleidoscope/api_functions.cpp
 )
 
 include_directories(BEFORE .)

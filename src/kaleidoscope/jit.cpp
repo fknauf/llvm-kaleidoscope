@@ -1,10 +1,17 @@
 #include "jit.hpp"
 
+#include "api_functions.hpp"
+
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 
 namespace kaleidoscope
 {
+    // Alles, was den JIT verwendet, verwendet auch die API-Funktionen.
+    // Wir brauchen das, um den Linker auszutricksen, der sonst die api_functions.o
+    // beim Link ausnehmen könnte, weil die Funktionen darin unbenutzt aussehen.
+    __attribute__((used)) auto api_anchor = &putchard;
+
     KaleidoscopeJIT::KaleidoscopeJIT(std::unique_ptr<llvm::orc::ExecutionSession> ES,
                                      llvm::orc::JITTargetMachineBuilder JTMB,
                                      llvm::DataLayout DL)
@@ -66,19 +73,4 @@ namespace kaleidoscope
     {
         return ES->lookup({&MainJD}, Mangle(Name.str()));
     }
-}
-
-#include <iostream>
-
-extern "C" double putchard(double X)
-{
-    std::cerr << static_cast<char>(X) << std::flush;
-    return 0;
-}
-
-/// printd - printf that takes a double prints it as "%f\n", returning 0.
-extern "C" double printd(double X)
-{
-    std::cerr << X << std::endl;
-    return 0;
 }
