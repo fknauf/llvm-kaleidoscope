@@ -3,6 +3,7 @@
 
 #include "ast.hpp"
 #include "error.hpp"
+#include "symbols.hpp"
 #include "parser.hpp"
 
 #include <llvm/IR/Value.h>
@@ -60,7 +61,9 @@ namespace kaleidoscope
         std::unique_ptr<llvm::LLVMContext> TheContext;
         std::unique_ptr<llvm::IRBuilder<>> TheBuilder;
         std::unique_ptr<llvm::Module> TheModule;
-        std::map<std::string, llvm::Value *> NamedValues;
+
+        SymbolTable<llvm::Value> globalSymbols_;
+        SymbolTable<llvm::Value> *activeScope_;
         std::map<std::string, PrototypeAST> FunctionProtos;
     };
 }

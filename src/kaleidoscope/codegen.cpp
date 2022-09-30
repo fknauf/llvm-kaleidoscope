@@ -22,7 +22,8 @@ namespace kaleidoscope
     CodeGenerator::CodeGenerator(Parser &p, llvm::DataLayout dataLayout)
         : TheParser(p),
           dataLayout(std::move(dataLayout)),
-          TheContext(std::make_unique<llvm::LLVMContext>())
+          TheContext(std::make_unique<llvm::LLVMContext>()),
+          activeScope_(&globalSymbols_)
     {
         stealModule();
     }
@@ -58,14 +59,14 @@ namespace kaleidoscope
 
     llvm::Value *CodeGenerator::operator()(VariableExprAST const &expr)
     {
-        auto iter = NamedValues.find(expr.getName());
+        auto value = activeScope_->tryLookup(expr.getName());
 
-        if (iter == NamedValues.end())
+        if (value == nullptr)
         {
             throw CodeGenerationError("Unknown variable " + expr.getName());
         }
 
-        return iter->second;
+        return value;
     }
 
     llvm::Value *CodeGenerator::operator()(UnaryExprAST const &expr)
@@ -169,30 +170,23 @@ namespace kaleidoscope
         auto Variable = TheBuilder->CreatePHI(llvm::Type::getDoubleTy(*TheContext), 2, expr.getVarName().c_str());
         Variable->addIncoming(startVal, PreheaderBB);
 
-        llvm::Value *oldVal = NamedValues[expr.getVarName()];
-        NamedValues[expr.getVarName()] = Variable;
-
-        (*this)(expr.getBody());
-
-        llvm::Value *StepVal = expr.getStep() ? (*this)(*expr.getStep()) : getConstant(1.0);
-        llvm::Value *nextVar = TheBuilder->CreateFAdd(Variable, StepVal, "nextVar");
-        llvm::Value *endVal = (*this)(expr.getEnd());
-        llvm::Value *endCond = getBoolCondition(endVal, "loopcond");
-
-        auto LoopEndBB = TheBuilder->GetInsertBlock();
-        auto AfterBB = llvm::BasicBlock::Create(*TheContext, "afterloop", TheFunction);
-        TheBuilder->CreateCondBr(endCond, LoopBB, AfterBB);
-        TheBuilder->SetInsertPoint(AfterBB);
-
-        Variable->addIncoming(nextVar, LoopEndBB);
-
-        if (oldVal)
         {
-            NamedValues[expr.getVarName()] = oldVal;
-        }
-        else
-        {
-            NamedValues.erase(expr.getVarName());
+            SymbolScope loopScope(activeScope_);
+            loopScope.tryDeclare(expr.getVarName(), Variable);
+
+            (*this)(expr.getBody());
+
+            llvm::Value *StepVal = expr.getStep() ? (*this)(*expr.getStep()) : getConstant(1.0);
+            llvm::Value *nextVar = TheBuilder->CreateFAdd(Variable, StepVal, "nextVar");
+            llvm::Value *endVal = (*this)(expr.getEnd());
+            llvm::Value *endCond = getBoolCondition(endVal, "loopcond");
+
+            auto LoopEndBB = TheBuilder->GetInsertBlock();
+            auto AfterBB = llvm::BasicBlock::Create(*TheContext, "afterloop", TheFunction);
+            TheBuilder->CreateCondBr(endCond, LoopBB, AfterBB);
+            TheBuilder->SetInsertPoint(AfterBB);
+
+            Variable->addIncoming(nextVar, LoopEndBB);
         }
 
         return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*TheContext));
@@ -256,14 +250,16 @@ namespace kaleidoscope
             llvm::BasicBlock *entryBlock = llvm::BasicBlock::Create(*TheContext, "entry", F);
             TheBuilder->SetInsertPoint(entryBlock);
 
-            NamedValues.clear();
-            for (auto &arg : F->args())
             {
-                NamedValues[std::string(arg.getName())] = &arg;
-            }
+                SymbolScope functionScope(activeScope_);
+                for (auto &arg : F->args())
+                {
+                    functionScope.tryDeclare(std::string(arg.getName()), &arg);
+                }
 
-            llvm::Value *bodyCode = (*this)(expr.getBody());
-            TheBuilder->CreateRet(bodyCode);
+                llvm::Value *bodyCode = (*this)(expr.getBody());
+                TheBuilder->CreateRet(bodyCode);
+            }
 
             llvm::verifyFunction(*F);
 
