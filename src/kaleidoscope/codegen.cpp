@@ -114,37 +114,38 @@ namespace kaleidoscope
 
     llvm::Value *CodeGenerator::operator()(IfExprAST const &expr)
     {
-        auto valCond = (*this)(expr.getCondition());
-        valCond = Builder->CreateFCmpONE(valCond, llvm::ConstantFP::get(*TheContext, llvm::APFloat(0.0)), "ifcond");
+        auto conditionValue = (*this)(expr.getCondition());
+        auto condition = Builder->CreateFCmpONE(conditionValue, llvm::ConstantFP::get(*TheContext, llvm::APFloat(0.0)), "ifcond");
 
         auto parentFunction = Builder->GetInsertBlock()->getParent();
 
-        auto ThenBB = llvm::BasicBlock::Create(*TheContext, "then", parentFunction);
+        auto ThenBBStart = llvm::BasicBlock::Create(*TheContext, "then", parentFunction);
         // else, merge werden fuer die condition gebraucht, aber sollen erst nach allen Bestandteilen
         // des then-Blocks an die Funktion angehangen werden. Darum hier ohne parentFunction-Parameter
-        auto ElseBB = llvm::BasicBlock::Create(*TheContext, "else");
+        auto ElseBBStart = llvm::BasicBlock::Create(*TheContext, "else");
         auto MergeBB = llvm::BasicBlock::Create(*TheContext, "ifcont");
 
-        Builder->CreateCondBr(valCond, ThenBB, ElseBB);
+        Builder->CreateCondBr(condition, ThenBBStart, ElseBBStart);
 
-        Builder->SetInsertPoint(ThenBB);
+        Builder->SetInsertPoint(ThenBBStart);
         auto valThen = (*this)(expr.getThenBranch());
         Builder->CreateBr(MergeBB);
-        ThenBB = Builder->GetInsertBlock();
+        auto ThenBBEnd = Builder->GetInsertBlock();
 
         // ElseBB an Parent-Funktion anhaengen, dann Inhalt generieren
-        parentFunction->getBasicBlockList().push_back(ElseBB);
-        Builder->SetInsertPoint(ElseBB);
+        parentFunction->getBasicBlockList().push_back(ElseBBStart);
+        Builder->SetInsertPoint(ElseBBStart);
         auto valElse = (*this)(expr.getElseBranch());
         Builder->CreateBr(MergeBB);
-        ElseBB = Builder->GetInsertBlock();
+        auto ElseBBEnd = Builder->GetInsertBlock();
 
         // Selbes Spiel fuer Merge-Block
         parentFunction->getBasicBlockList().push_back(MergeBB);
         Builder->SetInsertPoint(MergeBB);
+
         auto PN = Builder->CreatePHI(llvm::Type::getDoubleTy(*TheContext), 2, "iftmp");
-        PN->addIncoming(valThen, ThenBB);
-        PN->addIncoming(valElse, ElseBB);
+        PN->addIncoming(valThen, ThenBBEnd);
+        PN->addIncoming(valElse, ElseBBEnd);
 
         return PN;
     }
