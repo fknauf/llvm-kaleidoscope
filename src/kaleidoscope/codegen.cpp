@@ -5,7 +5,10 @@
 
 #include <boost/format.hpp>
 
+#include <algorithm>
+#include <functional>
 #include <iostream>
+#include <iterator>
 #include <sstream>
 #include <utility>
 
@@ -57,15 +60,15 @@ namespace kaleidoscope
 
     llvm::Value *CodeGenerator::operator()(UnaryExprAST const &expr)
     {
-        auto opd = std::visit(*this, expr.getOperand());
+        auto opd = (*this)(expr.getOperand());
         auto F = getFunction(std::string("unary") + expr.getOp(), "Unknown unary operator %1%");
         return Builder->CreateCall(F, opd, "unop");
     }
 
     llvm::Value *CodeGenerator::operator()(BinaryExprAST const &expr)
     {
-        llvm::Value *L = std::visit(*this, expr.getLHS());
-        llvm::Value *R = std::visit(*this, expr.getRHS());
+        llvm::Value *L = (*this)(expr.getLHS());
+        llvm::Value *R = (*this)(expr.getRHS());
 
         switch (expr.getOp())
         {
@@ -89,7 +92,8 @@ namespace kaleidoscope
 
         auto F = getFunction(std::string("binary") + expr.getOp(), "binary operator %1% not found!");
 
-        return Builder->CreateCall(F, {L, R}, "binop");
+        llvm::Value *Vals[] = {L, R};
+        return Builder->CreateCall(F, Vals, "binop");
     }
 
     llvm::Value *CodeGenerator::operator()(CallExprAST const &expr)
@@ -102,19 +106,16 @@ namespace kaleidoscope
             throw CodeGenerationError("Incorrect # arguments passed");
 
         std::vector<llvm::Value *> ArgsV;
-        for (auto &arg : expr.getArgs())
-        {
-            ArgsV.push_back(std::visit(*this, arg));
-        }
+        ArgsV.reserve(expr.getArgs().size());
+        std::transform(begin(expr.getArgs()), end(expr.getArgs()), std::back_inserter(ArgsV), std::ref(*this));
 
         return Builder->CreateCall(CalleeF, ArgsV, "calltmp");
     }
 
     llvm::Value *CodeGenerator::operator()(IfExprAST const &expr)
     {
-        auto valCond = std::visit(*this, expr.getCondition());
-
-        auto irHead = Builder->CreateFCmpONE(valCond, llvm::ConstantFP::get(*TheContext, llvm::APFloat(0.0)), "ifcond");
+        auto valCond = (*this)(expr.getCondition());
+        valCond = Builder->CreateFCmpONE(valCond, llvm::ConstantFP::get(*TheContext, llvm::APFloat(0.0)), "ifcond");
 
         auto parentFunction = Builder->GetInsertBlock()->getParent();
 
@@ -124,19 +125,19 @@ namespace kaleidoscope
         auto ElseBB = llvm::BasicBlock::Create(*TheContext, "else");
         auto MergeBB = llvm::BasicBlock::Create(*TheContext, "ifcont");
 
-        Builder->CreateCondBr(irHead, ThenBB, ElseBB);
+        Builder->CreateCondBr(valCond, ThenBB, ElseBB);
 
         Builder->SetInsertPoint(ThenBB);
-        auto valThen = std::visit(*this, expr.getThenBranch());
+        auto valThen = (*this)(expr.getThenBranch());
         Builder->CreateBr(MergeBB);
-        auto resultThen = Builder->GetInsertBlock();
+        ThenBB = Builder->GetInsertBlock();
 
         // ElseBB an Parent-Funktion anhaengen, dann Inhalt generieren
         parentFunction->getBasicBlockList().push_back(ElseBB);
         Builder->SetInsertPoint(ElseBB);
-        auto valElse = std::visit(*this, expr.getElseBranch());
+        auto valElse = (*this)(expr.getElseBranch());
         Builder->CreateBr(MergeBB);
-        auto resultElse = Builder->GetInsertBlock();
+        ElseBB = Builder->GetInsertBlock();
 
         // Selbes Spiel fuer Merge-Block
         parentFunction->getBasicBlockList().push_back(MergeBB);
@@ -150,7 +151,7 @@ namespace kaleidoscope
 
     llvm::Value *CodeGenerator::operator()(ForExprAST const &expr)
     {
-        auto startVal = std::visit(*this, expr.getStart());
+        auto startVal = (*this)(expr.getStart());
 
         auto TheFunction = Builder->GetInsertBlock()->getParent();
         auto PreheaderBB = Builder->GetInsertBlock();
@@ -167,12 +168,12 @@ namespace kaleidoscope
         llvm::Value *oldVal = NamedValues[expr.getVarName()];
         NamedValues[expr.getVarName()] = Variable;
 
-        std::visit(*this, expr.getBody());
+        (*this)(expr.getBody());
 
         llvm::Value *StepVal = nullptr;
         if (expr.getStep())
         {
-            StepVal = std::visit(*this, *expr.getStep());
+            StepVal = (*this)(*expr.getStep());
         }
         else
         {
@@ -180,7 +181,7 @@ namespace kaleidoscope
         }
 
         llvm::Value *nextVar = Builder->CreateFAdd(Variable, StepVal, "nextVar");
-        llvm::Value *endVal = std::visit(*this, expr.getEnd());
+        llvm::Value *endVal = (*this)(expr.getEnd());
         llvm::Value *endCond = Builder->CreateFCmpONE(endVal, llvm::ConstantFP::get(*TheContext, llvm::APFloat(0.0)), "loopcond");
 
         auto LoopEndBB = Builder->GetInsertBlock();
@@ -266,7 +267,7 @@ namespace kaleidoscope
                 NamedValues[std::string(arg.getName())] = &arg;
             }
 
-            llvm::Value *bodyCode = std::visit(*this, expr.getBody());
+            llvm::Value *bodyCode = (*this)(expr.getBody());
             Builder->CreateRet(bodyCode);
 
             llvm::verifyFunction(*F);
