@@ -36,14 +36,24 @@ namespace kaleidoscope
 
         TheContext.swap(ctx);
         TheModule.swap(mod);
-        Builder = std::make_unique<llvm::IRBuilder<>>(*TheContext);
+        TheBuilder = std::make_unique<llvm::IRBuilder<>>(*TheContext);
 
         return llvm::orc::ThreadSafeModule(std::move(mod), std::move(ctx));
     }
 
+    llvm::Value *CodeGenerator::getConstant(double value) const
+    {
+        return llvm::ConstantFP::get(*TheContext, llvm::APFloat(value));
+    }
+
+    llvm::Value *CodeGenerator::getBoolCondition(llvm::Value *condValue, llvm::Twine const &name)
+    {
+        return TheBuilder->CreateFCmpONE(condValue, getConstant(0.0), name);
+    }
+
     llvm::Value *CodeGenerator::operator()(NumberExprAST const &expr)
     {
-        return llvm::ConstantFP::get(*TheContext, llvm::APFloat(expr.getVal()));
+        return getConstant(expr.getVal());
     }
 
     llvm::Value *CodeGenerator::operator()(VariableExprAST const &expr)
@@ -62,7 +72,7 @@ namespace kaleidoscope
     {
         auto opd = (*this)(expr.getOperand());
         auto F = getFunction(std::string("unary") + expr.getOp(), "Unknown unary operator %1%");
-        return Builder->CreateCall(F, opd, "unop");
+        return TheBuilder->CreateCall(F, opd, "unop");
     }
 
     llvm::Value *CodeGenerator::operator()(BinaryExprAST const &expr)
@@ -73,18 +83,18 @@ namespace kaleidoscope
         switch (expr.getOp())
         {
         case '+':
-            return Builder->CreateFAdd(L, R, "addtmp");
+            return TheBuilder->CreateFAdd(L, R, "addtmp");
         case '-':
-            return Builder->CreateFSub(L, R, "subtmp");
+            return TheBuilder->CreateFSub(L, R, "subtmp");
         case '*':
-            return Builder->CreateFMul(L, R, "multmp");
+            return TheBuilder->CreateFMul(L, R, "multmp");
         case '/':
-            return Builder->CreateFDiv(L, R, "divtmp");
+            return TheBuilder->CreateFDiv(L, R, "divtmp");
         case '<':
         {
-            llvm::Value *C = Builder->CreateFCmpULT(L, R, "cmptmp");
+            llvm::Value *C = TheBuilder->CreateFCmpULT(L, R, "cmptmp");
 
-            return Builder->CreateUIToFP(C, llvm::Type::getDoubleTy(*TheContext), "booltmp");
+            return TheBuilder->CreateUIToFP(C, llvm::Type::getDoubleTy(*TheContext), "booltmp");
         }
         default:
             break;
@@ -93,7 +103,7 @@ namespace kaleidoscope
         auto F = getFunction(std::string("binary") + expr.getOp(), "binary operator %1% not found!");
 
         llvm::Value *Vals[] = {L, R};
-        return Builder->CreateCall(F, Vals, "binop");
+        return TheBuilder->CreateCall(F, Vals, "binop");
     }
 
     llvm::Value *CodeGenerator::operator()(CallExprAST const &expr)
@@ -109,41 +119,35 @@ namespace kaleidoscope
         ArgsV.reserve(expr.getArgs().size());
         std::transform(begin(expr.getArgs()), end(expr.getArgs()), std::back_inserter(ArgsV), std::ref(*this));
 
-        return Builder->CreateCall(CalleeF, ArgsV, "calltmp");
+        return TheBuilder->CreateCall(CalleeF, ArgsV, "calltmp");
     }
 
     llvm::Value *CodeGenerator::operator()(IfExprAST const &expr)
     {
         auto conditionValue = (*this)(expr.getCondition());
-        auto condition = Builder->CreateFCmpONE(conditionValue, llvm::ConstantFP::get(*TheContext, llvm::APFloat(0.0)), "ifcond");
+        auto condition = getBoolCondition(conditionValue, "ifcond");
 
-        auto parentFunction = Builder->GetInsertBlock()->getParent();
+        auto parentFunction = TheBuilder->GetInsertBlock()->getParent();
 
         auto ThenBBStart = llvm::BasicBlock::Create(*TheContext, "then", parentFunction);
-        // else, merge werden fuer die condition gebraucht, aber sollen erst nach allen Bestandteilen
-        // des then-Blocks an die Funktion angehangen werden. Darum hier ohne parentFunction-Parameter
-        auto ElseBBStart = llvm::BasicBlock::Create(*TheContext, "else");
-        auto MergeBB = llvm::BasicBlock::Create(*TheContext, "ifcont");
+        auto ElseBBStart = llvm::BasicBlock::Create(*TheContext, "else", parentFunction);
+        auto MergeBB = llvm::BasicBlock::Create(*TheContext, "ifcont", parentFunction);
 
-        Builder->CreateCondBr(condition, ThenBBStart, ElseBBStart);
+        TheBuilder->CreateCondBr(condition, ThenBBStart, ElseBBStart);
 
-        Builder->SetInsertPoint(ThenBBStart);
+        TheBuilder->SetInsertPoint(ThenBBStart);
         auto valThen = (*this)(expr.getThenBranch());
-        Builder->CreateBr(MergeBB);
-        auto ThenBBEnd = Builder->GetInsertBlock();
+        TheBuilder->CreateBr(MergeBB);
+        auto ThenBBEnd = TheBuilder->GetInsertBlock();
 
-        // ElseBB an Parent-Funktion anhaengen, dann Inhalt generieren
-        parentFunction->getBasicBlockList().push_back(ElseBBStart);
-        Builder->SetInsertPoint(ElseBBStart);
+        TheBuilder->SetInsertPoint(ElseBBStart);
         auto valElse = (*this)(expr.getElseBranch());
-        Builder->CreateBr(MergeBB);
-        auto ElseBBEnd = Builder->GetInsertBlock();
+        TheBuilder->CreateBr(MergeBB);
+        auto ElseBBEnd = TheBuilder->GetInsertBlock();
 
-        // Selbes Spiel fuer Merge-Block
-        parentFunction->getBasicBlockList().push_back(MergeBB);
-        Builder->SetInsertPoint(MergeBB);
+        TheBuilder->SetInsertPoint(MergeBB);
 
-        auto PN = Builder->CreatePHI(llvm::Type::getDoubleTy(*TheContext), 2, "iftmp");
+        auto PN = TheBuilder->CreatePHI(llvm::Type::getDoubleTy(*TheContext), 2, "iftmp");
         PN->addIncoming(valThen, ThenBBEnd);
         PN->addIncoming(valElse, ElseBBEnd);
 
@@ -154,16 +158,15 @@ namespace kaleidoscope
     {
         auto startVal = (*this)(expr.getStart());
 
-        auto TheFunction = Builder->GetInsertBlock()->getParent();
-        auto PreheaderBB = Builder->GetInsertBlock();
+        auto TheFunction = TheBuilder->GetInsertBlock()->getParent();
+        auto PreheaderBB = TheBuilder->GetInsertBlock();
         auto LoopBB = llvm::BasicBlock::Create(*TheContext, "loop", TheFunction);
-
         // explicit fall-through from current to loop. Implicit is not allowed.
-        Builder->CreateBr(LoopBB);
-        Builder->SetInsertPoint(LoopBB);
+        TheBuilder->CreateBr(LoopBB);
 
+        TheBuilder->SetInsertPoint(LoopBB);
         // Phi node for variable, first input is the start value. Second will be the loop counter
-        auto Variable = Builder->CreatePHI(llvm::Type::getDoubleTy(*TheContext), 2, expr.getVarName().c_str());
+        auto Variable = TheBuilder->CreatePHI(llvm::Type::getDoubleTy(*TheContext), 2, expr.getVarName().c_str());
         Variable->addIncoming(startVal, PreheaderBB);
 
         llvm::Value *oldVal = NamedValues[expr.getVarName()];
@@ -171,24 +174,15 @@ namespace kaleidoscope
 
         (*this)(expr.getBody());
 
-        llvm::Value *StepVal = nullptr;
-        if (expr.getStep())
-        {
-            StepVal = (*this)(*expr.getStep());
-        }
-        else
-        {
-            StepVal = llvm::ConstantFP::get(*TheContext, llvm::APFloat(1.0));
-        }
-
-        llvm::Value *nextVar = Builder->CreateFAdd(Variable, StepVal, "nextVar");
+        llvm::Value *StepVal = expr.getStep() ? (*this)(*expr.getStep()) : getConstant(1.0);
+        llvm::Value *nextVar = TheBuilder->CreateFAdd(Variable, StepVal, "nextVar");
         llvm::Value *endVal = (*this)(expr.getEnd());
-        llvm::Value *endCond = Builder->CreateFCmpONE(endVal, llvm::ConstantFP::get(*TheContext, llvm::APFloat(0.0)), "loopcond");
+        llvm::Value *endCond = getBoolCondition(endVal, "loopcond");
 
-        auto LoopEndBB = Builder->GetInsertBlock();
+        auto LoopEndBB = TheBuilder->GetInsertBlock();
         auto AfterBB = llvm::BasicBlock::Create(*TheContext, "afterloop", TheFunction);
-        Builder->CreateCondBr(endCond, LoopBB, AfterBB);
-        Builder->SetInsertPoint(AfterBB);
+        TheBuilder->CreateCondBr(endCond, LoopBB, AfterBB);
+        TheBuilder->SetInsertPoint(AfterBB);
 
         Variable->addIncoming(nextVar, LoopEndBB);
 
@@ -260,7 +254,7 @@ namespace kaleidoscope
             TheParser.registerOperator(expr.getProto());
 
             llvm::BasicBlock *entryBlock = llvm::BasicBlock::Create(*TheContext, "entry", F);
-            Builder->SetInsertPoint(entryBlock);
+            TheBuilder->SetInsertPoint(entryBlock);
 
             NamedValues.clear();
             for (auto &arg : F->args())
@@ -269,7 +263,7 @@ namespace kaleidoscope
             }
 
             llvm::Value *bodyCode = (*this)(expr.getBody());
-            Builder->CreateRet(bodyCode);
+            TheBuilder->CreateRet(bodyCode);
 
             llvm::verifyFunction(*F);
 

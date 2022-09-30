@@ -52,11 +52,13 @@ namespace kaleidoscope
 
     private:
         llvm::Function *getFunction(std::string const &name, std::string const &errmsg_format);
+        llvm::Value *getConstant(double value) const;
+        llvm::Value *getBoolCondition(llvm::Value *condValue, llvm::Twine const &name);
 
         Parser &TheParser;
         llvm::DataLayout dataLayout;
         std::unique_ptr<llvm::LLVMContext> TheContext;
-        std::unique_ptr<llvm::IRBuilder<>> Builder;
+        std::unique_ptr<llvm::IRBuilder<>> TheBuilder;
         std::unique_ptr<llvm::Module> TheModule;
         std::map<std::string, llvm::Value *> NamedValues;
         std::map<std::string, PrototypeAST> FunctionProtos;
