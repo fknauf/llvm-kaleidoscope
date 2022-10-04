@@ -72,7 +72,9 @@ namespace
             auto exprSymbol = ExitOnErr(jitCompiler_->lookup("__anon_expr"));
             auto FP = reinterpret_cast<double (*)()>(exprSymbol.getAddress());
 
-            std::cerr << "Evaluated to " << FP() << std::endl;
+            auto result = FP();
+
+            std::cerr << "Evaluated to " << result << std::endl;
 
             ExitOnErr(RT->remove()); });
         }

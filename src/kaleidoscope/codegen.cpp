@@ -103,6 +103,20 @@ namespace kaleidoscope
 
             return TheBuilder->CreateUIToFP(C, llvm::Type::getDoubleTy(*TheContext), "booltmp");
         }
+        case '=':
+            if (auto destVarAST = std::get_if<VariableExprAST>(&expr.getLHS()))
+            {
+                auto destVarSpace = activeScope_->tryLookup(destVarAST->getName());
+                auto assignedValue = (*this)(expr.getRHS());
+
+                TheBuilder->CreateStore(assignedValue, destVarSpace);
+
+                return assignedValue;
+            }
+            else
+            {
+                throw CodeGenerationError("destination of '=' must be a variable");
+            }
         default:
             break;
         }

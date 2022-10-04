@@ -14,7 +14,7 @@ namespace kaleidoscope
     Parser::Parser(Lexer &lexer)
         : lexer_(lexer),
           binOpPrecedence{
-              {'<', 10}, {'+', 20}, {'-', 20}, {'*', 40}, {'/', 40}}
+              {'=', 2}, {'<', 10}, {'+', 20}, {'-', 20}, {'*', 40}, {'/', 40}}
     {
     }
 
