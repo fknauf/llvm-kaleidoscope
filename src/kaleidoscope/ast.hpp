@@ -15,6 +15,7 @@ namespace kaleidoscope
     class CallExprAST;
     class IfExprAST;
     class ForExprAST;
+    class VarExprAST;
 
     using ExprAST = std::variant<NumberExprAST,
                                  VariableExprAST,
@@ -22,7 +23,8 @@ namespace kaleidoscope
                                  BinaryExprAST,
                                  CallExprAST,
                                  IfExprAST,
-                                 ForExprAST>;
+                                 ForExprAST,
+                                 VarExprAST>;
 
     class NumberExprAST
     {
@@ -103,6 +105,32 @@ namespace kaleidoscope
         std::unique_ptr<ExprAST> body_;
     };
 
+    class VariableDeclarationAST
+    {
+    public:
+        VariableDeclarationAST(std::string const &name, std::unique_ptr<ExprAST> initVal);
+
+        std::string const &getName() const noexcept;
+        ExprAST const *getInitVal() const noexcept;
+
+    private:
+        std::string name_;
+        std::unique_ptr<ExprAST> initVal_;
+    };
+
+    class VarExprAST
+    {
+    public:
+        VarExprAST(std::vector<VariableDeclarationAST> declarations, ExprAST Body);
+
+        std::vector<VariableDeclarationAST> const &getDeclarations() const noexcept;
+        ExprAST const &getBody() const noexcept;
+
+    private:
+        std::vector<VariableDeclarationAST> declarations_;
+        std::unique_ptr<ExprAST> body_;
+    };
+
     /// CallExprAST - Expression class for function calls.
     class CallExprAST
     {
@@ -113,8 +141,8 @@ namespace kaleidoscope
         CallExprAST(const std::string &Callee,
                     std::vector<ExprAST> Args);
 
-        auto const &getCallee() const noexcept { return Callee; }
-        auto const &getArgs() const noexcept { return Args; }
+        std::string const &getCallee() const noexcept;
+        std::vector<ExprAST> const &getArgs() const noexcept;
     };
 
     /// PrototypeAST - This class represents the "prototype" for a function,

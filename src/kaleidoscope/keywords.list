@@ -7,5 +7,6 @@ KEYWORD(for)
 KEYWORD(in)
 KEYWORD(unary)
 KEYWORD(binary)
+KEYWORD(var)
 
 #undef KEYWORD

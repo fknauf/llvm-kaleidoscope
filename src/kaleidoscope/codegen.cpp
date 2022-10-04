@@ -23,6 +23,7 @@ namespace kaleidoscope
         : TheParser(p),
           dataLayout(std::move(dataLayout)),
           TheContext(std::make_unique<llvm::LLVMContext>()),
+          globalSymbols_(nullptr),
           activeScope_(&globalSymbols_)
     {
         stealModule();
@@ -209,6 +210,27 @@ namespace kaleidoscope
         }
 
         return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*TheContext));
+    }
+
+    llvm::Value *CodeGenerator::operator()(VarExprAST const &expr)
+    {
+        SymbolScope varScope(activeScope_);
+        auto F = TheBuilder->GetInsertBlock()->getParent();
+
+        for (auto &decl : expr.getDeclarations())
+        {
+            llvm::Value *initVal = decl.getInitVal() ? (*this)(*decl.getInitVal()) : getConstant(0.0);
+
+            auto space = createScopedVariable(F, decl.getName());
+            TheBuilder->CreateStore(initVal, space);
+
+            if (!varScope.tryDeclare(decl.getName(), space))
+            {
+                throw CodeGenerationError("redefined variable '" + decl.getName() + "' in var block");
+            }
+        }
+
+        return (*this)(expr.getBody());
     }
 
     llvm::Function *CodeGenerator::getFunction(std::string const &name, std::string const &errmsg_format)

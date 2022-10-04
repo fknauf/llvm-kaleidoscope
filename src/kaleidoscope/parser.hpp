@@ -32,6 +32,7 @@ namespace kaleidoscope
         ExprAST ParseExpression();
         ExprAST ParseUnary();
         ExprAST ParseBinOpRHS(int ExprPrec, ExprAST &&LHS);
+        VarExprAST ParseVarExpr();
         IfExprAST ParseIfExpr();
         ForExprAST ParseForExpr();
 
@@ -50,6 +51,9 @@ namespace kaleidoscope
         char expectAscii(std::string const &errMsg);
         void expectChar(char expected, std::string const &errMsg);
         void expectKeyword(TokenType expected, std::string const &errMsg);
+
+        bool tryConsumeChar(char expected);
+        bool tryConsumeKeyword(TokenType expected);
 
         Lexer &lexer_;
         Token CurTok{tok_eof};

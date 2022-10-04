@@ -38,6 +38,7 @@ namespace kaleidoscope
         llvm::Value *operator()(CallExprAST const &expr);
         llvm::Value *operator()(IfExprAST const &expr);
         llvm::Value *operator()(ForExprAST const &expr);
+        llvm::Value *operator()(VarExprAST const &expr);
 
         llvm::Function *operator()(PrototypeAST const &expr);
         llvm::Function *operator()(FunctionAST const &expr);

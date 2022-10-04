@@ -150,8 +150,11 @@ int main(int argc, char *argv[])
 {
     if (argc > 1)
     {
-        std::ifstream in(argv[1]);
-        MainParse(in);
+        for (int i = 1; i < argc; ++i)
+        {
+            std::ifstream in(argv[i]);
+            MainParse(in);
+        }
     }
     else
     {

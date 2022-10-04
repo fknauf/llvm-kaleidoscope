@@ -11,7 +11,7 @@ namespace kaleidoscope
     class SymbolTable
     {
     public:
-        SymbolTable(SymbolTable *surroundingScope = nullptr);
+        SymbolTable(SymbolTable *surroundingScope);
 
         llvm::AllocaInst *tryLookup(std::string const &name) const;
         bool tryDeclare(std::string const &name, llvm::AllocaInst *value);

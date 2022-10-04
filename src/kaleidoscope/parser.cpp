@@ -33,6 +33,32 @@ namespace kaleidoscope
         return -1;
     }
 
+    bool Parser::tryConsumeChar(char expected)
+    {
+        if (CurTok == expected)
+        {
+            getNextToken();
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    bool Parser::tryConsumeKeyword(TokenType expected)
+    {
+        if (CurTok.getType() == expected)
+        {
+            getNextToken();
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
     std::string Parser::expectIdentifier(std::string const &errMsg)
     {
         if (CurTok.getType() != tok_identifier)
@@ -61,22 +87,18 @@ namespace kaleidoscope
 
     void Parser::expectChar(char expected, std::string const &errMsg)
     {
-        if (CurTok != expected)
+        if (!tryConsumeChar(expected))
         {
             throw ParseError(errMsg);
         }
-
-        getNextToken();
     }
 
     void Parser::expectKeyword(TokenType expected, std::string const &errMsg)
     {
-        if (CurTok.getType() != expected)
+        if (!tryConsumeKeyword(expected))
         {
             throw ParseError(errMsg);
         }
-
-        getNextToken();
     }
 
     NumberExprAST Parser::ParseNumberExpr()
@@ -102,11 +124,12 @@ namespace kaleidoscope
 
         getNextToken(); // eat identifier.
 
-        if (CurTok != '(') // Simple variable ref.
+        if (!tryConsumeChar('(')) // Simple variable ref.
+        {
             return VariableExprAST(IdName);
+        }
 
         // Call.
-        getNextToken(); // eat (
         std::vector<ExprAST> Args;
         if (CurTok != ')')
         {
@@ -144,6 +167,10 @@ namespace kaleidoscope
         else if (CurTok.getType() == tok_for)
         {
             return ParseForExpr();
+        }
+        else if (CurTok.getType() == tok_var)
+        {
+            return ParseVarExpr();
         }
         else if (CurTok == '(')
         {
@@ -233,9 +260,8 @@ namespace kaleidoscope
         auto end = ParseExpression();
 
         std::unique_ptr<ExprAST> step;
-        if (CurTok == ',')
+        if (tryConsumeChar(','))
         {
-            getNextToken();
             step = std::make_unique<ExprAST>(ParseExpression());
         }
 
@@ -243,6 +269,32 @@ namespace kaleidoscope
         auto body = ParseExpression();
 
         return ForExprAST(varName, std::move(start), std::move(end), std::move(step), std::move(body));
+    }
+
+    VarExprAST Parser::ParseVarExpr()
+    {
+        getNextToken();
+
+        std::vector<VariableDeclarationAST> varDecls;
+
+        do
+        {
+            std::string name = expectIdentifier("Expected identifier list after 'var'");
+            std::unique_ptr<ExprAST> initVal;
+
+            if (tryConsumeChar('='))
+            {
+                initVal = std::make_unique<ExprAST>(ParseExpression());
+            }
+
+            varDecls.emplace_back(name, std::move(initVal));
+        } while (tryConsumeChar(','));
+
+        expectKeyword(tok_in, "expected 'in' keyword after 'var'");
+
+        auto body = ParseExpression();
+
+        return VarExprAST(std::move(varDecls), std::move(body));
     }
 
     PrototypeAST Parser::ParsePrototype()

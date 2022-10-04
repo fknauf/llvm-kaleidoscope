@@ -11,3 +11,7 @@ def test(x)
   printd(x);
 
 test(123);
+
+var a = 1, b = a + 2 in (
+  a = b + 1
+) : a;

@@ -83,6 +83,9 @@ namespace kaleidoscope
                              std::vector<ExprAST> Args)
         : Callee(Callee), Args(std::move(Args)) {}
 
+    std::string const &CallExprAST::getCallee() const noexcept { return Callee; }
+    std::vector<ExprAST> const &CallExprAST::getArgs() const noexcept { return Args; }
+
     PrototypeAST::PrototypeAST(const std::string &name,
                                std::vector<std::string> Args,
                                bool isOperator,
@@ -93,6 +96,21 @@ namespace kaleidoscope
           precedence_(precedence)
     {
     }
+
+    VariableDeclarationAST::VariableDeclarationAST(std::string const &name, std::unique_ptr<ExprAST> initVal)
+        : name_(name), initVal_(std::move(initVal)) {}
+
+    std::string const &VariableDeclarationAST::getName() const noexcept { return name_; }
+    ExprAST const *VariableDeclarationAST::getInitVal() const noexcept { return initVal_.get(); }
+
+    VarExprAST::VarExprAST(std::vector<VariableDeclarationAST> declarations, ExprAST Body)
+        : declarations_(std::move(declarations)),
+          body_(std::make_unique<ExprAST>(std::move(Body)))
+    {
+    }
+
+    std::vector<VariableDeclarationAST> const &VarExprAST::getDeclarations() const noexcept { return declarations_; }
+    ExprAST const &VarExprAST::getBody() const noexcept { return *body_; }
 
     const std::string &PrototypeAST::getName() const noexcept
     {
