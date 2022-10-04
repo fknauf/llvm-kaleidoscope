@@ -56,14 +56,16 @@ namespace kaleidoscope
         llvm::Value *getConstant(double value) const;
         llvm::Value *getBoolCondition(llvm::Value *condValue, llvm::Twine const &name);
 
+        llvm::AllocaInst *createScopedVariable(llvm::Function *F, std::string const &varName);
+
         Parser &TheParser;
         llvm::DataLayout dataLayout;
         std::unique_ptr<llvm::LLVMContext> TheContext;
         std::unique_ptr<llvm::IRBuilder<>> TheBuilder;
         std::unique_ptr<llvm::Module> TheModule;
 
-        SymbolTable<llvm::Value> globalSymbols_;
-        SymbolTable<llvm::Value> *activeScope_;
+        SymbolTable globalSymbols_;
+        SymbolTable *activeScope_;
         std::map<std::string, PrototypeAST> FunctionProtos;
     };
 }

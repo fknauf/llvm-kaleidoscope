@@ -49,8 +49,7 @@ namespace kaleidoscope
             do
             {
                 NumStr += LastChar;
-            } while (in_.get(LastChar) && std::isdigit(LastChar) ||
-                     LastChar == '.');
+            } while (in_.get(LastChar) && (std::isdigit(LastChar) || LastChar == '.'));
 
             std::istringstream parser(NumStr);
             double NumVal = 0.0;

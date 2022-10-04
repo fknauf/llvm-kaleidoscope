@@ -52,6 +52,12 @@ namespace kaleidoscope
         return TheBuilder->CreateFCmpONE(condValue, getConstant(0.0), name);
     }
 
+    llvm::AllocaInst *CodeGenerator::createScopedVariable(llvm::Function *F, std::string const &varName)
+    {
+        llvm::IRBuilder<> tempBuilder(&F->getEntryBlock(), F->getEntryBlock().begin());
+        return tempBuilder.CreateAlloca(llvm::Type::getDoubleTy(*TheContext), 0, varName.c_str());
+    }
+
     llvm::Value *CodeGenerator::operator()(NumberExprAST const &expr)
     {
         return getConstant(expr.getVal());
@@ -66,7 +72,7 @@ namespace kaleidoscope
             throw CodeGenerationError("Unknown variable " + expr.getName());
         }
 
-        return value;
+        return TheBuilder->CreateLoad(llvm::Type::getDoubleTy(*TheContext), value, expr.getName().c_str());
     }
 
     llvm::Value *CodeGenerator::operator()(UnaryExprAST const &expr)
@@ -157,36 +163,35 @@ namespace kaleidoscope
 
     llvm::Value *CodeGenerator::operator()(ForExprAST const &expr)
     {
-        auto startVal = (*this)(expr.getStart());
-
         auto TheFunction = TheBuilder->GetInsertBlock()->getParent();
-        auto PreheaderBB = TheBuilder->GetInsertBlock();
+
+        auto loopVarSpace = createScopedVariable(TheFunction, expr.getVarName());
+        auto startVal = (*this)(expr.getStart());
+        TheBuilder->CreateStore(startVal, loopVarSpace);
+
         auto LoopBB = llvm::BasicBlock::Create(*TheContext, "loop", TheFunction);
         // explicit fall-through from current to loop. Implicit is not allowed.
         TheBuilder->CreateBr(LoopBB);
-
         TheBuilder->SetInsertPoint(LoopBB);
-        // Phi node for variable, first input is the start value. Second will be the loop counter
-        auto Variable = TheBuilder->CreatePHI(llvm::Type::getDoubleTy(*TheContext), 2, expr.getVarName().c_str());
-        Variable->addIncoming(startVal, PreheaderBB);
 
         {
             SymbolScope loopScope(activeScope_);
-            loopScope.tryDeclare(expr.getVarName(), Variable);
+            loopScope.tryDeclare(expr.getVarName(), loopVarSpace);
 
             (*this)(expr.getBody());
 
             llvm::Value *StepVal = expr.getStep() ? (*this)(*expr.getStep()) : getConstant(1.0);
-            llvm::Value *nextVar = TheBuilder->CreateFAdd(Variable, StepVal, "nextVar");
+
+            llvm::Value *curLoopVarValue = TheBuilder->CreateLoad(llvm::Type::getDoubleTy(*TheContext), loopVarSpace, expr.getVarName());
+            llvm::Value *nextLoopVarValue = TheBuilder->CreateFAdd(curLoopVarValue, StepVal, "nextVar");
+            TheBuilder->CreateStore(nextLoopVarValue, loopVarSpace);
+
             llvm::Value *endVal = (*this)(expr.getEnd());
             llvm::Value *endCond = getBoolCondition(endVal, "loopcond");
 
-            auto LoopEndBB = TheBuilder->GetInsertBlock();
             auto AfterBB = llvm::BasicBlock::Create(*TheContext, "afterloop", TheFunction);
             TheBuilder->CreateCondBr(endCond, LoopBB, AfterBB);
             TheBuilder->SetInsertPoint(AfterBB);
-
-            Variable->addIncoming(nextVar, LoopEndBB);
         }
 
         return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*TheContext));
@@ -254,7 +259,9 @@ namespace kaleidoscope
                 SymbolScope functionScope(activeScope_);
                 for (auto &arg : F->args())
                 {
-                    functionScope.tryDeclare(std::string(arg.getName()), &arg);
+                    auto varSpace = createScopedVariable(F, arg.getName().str());
+                    TheBuilder->CreateStore(&arg, varSpace);
+                    functionScope.tryDeclare(std::string(arg.getName()), varSpace);
                 }
 
                 llvm::Value *bodyCode = (*this)(expr.getBody());

@@ -67,7 +67,7 @@ namespace
     };
 
     /// top ::= definition | external | expression | ';'
-    static void MainLoop(llvm::LLVMContext &llvmContext, Parser &p)
+    static void MainLoop(Parser &p)
     {
         CodeGenerationHandler codegen(p);
 
@@ -105,15 +105,13 @@ namespace
         using kaleidoscope::Lexer;
         using kaleidoscope::Parser;
 
-        llvm::LLVMContext llvmContext;
-
         Lexer lexer(in);
         Parser parser(lexer);
 
         std::cerr << "ready> " << std::flush;
         parser.getNextToken();
 
-        MainLoop(llvmContext, parser);
+        MainLoop(parser);
     }
 }
 

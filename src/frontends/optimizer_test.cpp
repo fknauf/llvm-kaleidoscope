@@ -24,7 +24,7 @@ namespace
             try
             {
                 auto ast = (p.*parseFunction)();
-                auto ir = codegen_(ast);
+                codegen_(ast);
             }
             catch (Error const &e)
             {
@@ -65,7 +65,7 @@ namespace
     };
 
     /// top ::= definition | external | expression | ';'
-    static void MainLoop(llvm::LLVMContext &llvmContext, Parser &p)
+    static void MainLoop(Parser &p)
     {
         CodeGenerationHandler codegen(p);
 
@@ -111,14 +111,12 @@ namespace
         using kaleidoscope::Lexer;
         using kaleidoscope::Parser;
 
-        llvm::LLVMContext llvmContext;
-
         Lexer lexer(in);
         Parser parser(lexer);
 
         parser.getNextToken();
 
-        MainLoop(llvmContext, parser);
+        MainLoop(parser);
     }
 }
 

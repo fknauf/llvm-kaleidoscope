@@ -232,11 +232,11 @@ namespace kaleidoscope
         expectChar(',', "expected ',' after for start value");
         auto end = ParseExpression();
 
-        std::optional<ExprAST> step;
+        std::unique_ptr<ExprAST> step;
         if (CurTok == ',')
         {
             getNextToken();
-            step = ParseExpression();
+            step = std::make_unique<ExprAST>(ParseExpression());
         }
 
         expectKeyword(tok_in, "expected 'in' after for");
@@ -247,7 +247,7 @@ namespace kaleidoscope
 
     PrototypeAST Parser::ParsePrototype()
     {
-        int kind;
+        std::size_t opArgsCount;
         std::string FnName;
         int binprecedence = 30;
 
@@ -256,19 +256,19 @@ namespace kaleidoscope
         case tok_identifier:
             FnName = CurTok.getIdentifierValue();
             getNextToken();
-            kind = 0;
+            opArgsCount = 0;
             break;
         case tok_unary:
             getNextToken();
             FnName = "unary";
             FnName += expectAscii("Expected unary operator");
-            kind = 1;
+            opArgsCount = 1;
             break;
         case tok_binary:
             getNextToken();
             FnName = "binary";
             FnName += expectAscii("Expected binary operator");
-            kind = 2;
+            opArgsCount = 2;
 
             if (CurTok.getType() == tok_number)
             {
@@ -276,6 +276,8 @@ namespace kaleidoscope
                 getNextToken();
             }
             break;
+        default:
+            throw ParseError("Expected identifier, 'unary', or 'binary' in ParsePrototype");
         }
 
         expectChar('(', "Expected '(' in prototype");
@@ -289,14 +291,14 @@ namespace kaleidoscope
         }
         expectChar(')', "Expected ')' in prototype");
 
-        if (kind != 0 && ArgNames.size() != kind)
+        if (opArgsCount != 0 && ArgNames.size() != opArgsCount)
         {
             throw ParseError("Invalid number of operands for operator");
         }
 
         // success.
 
-        return PrototypeAST(FnName, std::move(ArgNames), kind != 0, binprecedence);
+        return PrototypeAST(FnName, std::move(ArgNames), opArgsCount != 0, binprecedence);
     }
 
     FunctionAST Parser::ParseDefinition()

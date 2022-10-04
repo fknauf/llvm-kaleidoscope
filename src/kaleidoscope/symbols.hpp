@@ -1,68 +1,36 @@
 #ifndef INCLUDED_KALEIDOSCOPE_SYMBOLS_HPP
 #define INCLUDED_KALEIDOSCOPE_SYMBOLS_HPP
 
-#include <cassert>
+#include <llvm/IR/Instructions.h>
+
 #include <memory>
 #include <unordered_map>
 
 namespace kaleidoscope
 {
-    template <typename ValueType>
     class SymbolTable
     {
     public:
-        SymbolTable(SymbolTable *surroundingScope = nullptr)
-            : surroundingScope_(surroundingScope)
-        {
-        }
+        SymbolTable(SymbolTable *surroundingScope = nullptr);
 
-        ValueType *tryLookup(std::string const &name) const
-        {
-            auto iter = namedValues_.find(name);
-
-            if (iter != namedValues_.end())
-            {
-                return iter->second;
-            }
-            else if (surroundingScope_)
-            {
-                return surroundingScope_->tryLookup(name);
-            }
-
-            return nullptr;
-        }
-
-        bool tryDeclare(std::string const &name, ValueType *value)
-        {
-            auto r = namedValues_.insert({name, value});
-            return r.second;
-        }
+        llvm::AllocaInst *tryLookup(std::string const &name) const;
+        bool tryDeclare(std::string const &name, llvm::AllocaInst *value);
 
     protected:
         SymbolTable *surroundingScope_;
 
     private:
-        std::unordered_map<std::string, ValueType *> namedValues_;
+        std::unordered_map<std::string, llvm::AllocaInst *> namedValues_;
     };
 
-    template <typename ValueType>
-    class SymbolScope : public SymbolTable<ValueType>
+    class SymbolScope : public SymbolTable
     {
     public:
-        SymbolScope(SymbolTable<ValueType> *&guardedPtr)
-            : SymbolTable<ValueType>(guardedPtr),
-              guardedPtr_(guardedPtr)
-        {
-            guardedPtr_ = this;
-        }
-
-        ~SymbolScope()
-        {
-            guardedPtr_ = SymbolTable<ValueType>::surroundingScope_;
-        }
+        SymbolScope(SymbolTable *&guardedPtr);
+        ~SymbolScope();
 
     private:
-        SymbolTable<ValueType> *&guardedPtr_;
+        SymbolTable *&guardedPtr_;
     };
 }
 

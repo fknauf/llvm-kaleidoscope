@@ -49,11 +49,11 @@ namespace kaleidoscope
         return *elseBranch_;
     }
 
-    ForExprAST::ForExprAST(std::string varName, ExprAST start, ExprAST end, std::optional<ExprAST> step, ExprAST body)
+    ForExprAST::ForExprAST(std::string varName, ExprAST start, ExprAST end, std::unique_ptr<ExprAST> step, ExprAST body)
         : varName_(varName),
           start_(std::make_unique<ExprAST>(std::move(start))),
           end_(std::make_unique<ExprAST>(std::move(end))),
-          step_(std::make_unique<std::optional<ExprAST>>(std::move(step))),
+          step_(std::move(step)),
           body_(std::make_unique<ExprAST>(std::move(body)))
     {
     }
@@ -70,9 +70,9 @@ namespace kaleidoscope
     {
         return *end_;
     }
-    std::optional<ExprAST> const &ForExprAST::getStep() const noexcept
+    ExprAST const *ForExprAST::getStep() const noexcept
     {
-        return *step_;
+        return step_.get();
     }
     ExprAST const &ForExprAST::getBody() const noexcept
     {

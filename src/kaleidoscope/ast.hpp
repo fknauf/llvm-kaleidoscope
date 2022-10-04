@@ -1,11 +1,10 @@
 #ifndef INCLUDED_KALEIDOSCOPE_AST_HPP
 #define INCLUDED_KALEIDOSCOPE_AST_HPP
 
-#include <string>
 #include <memory>
+#include <string>
 #include <vector>
 #include <variant>
-#include <optional>
 
 namespace kaleidoscope
 {
@@ -88,18 +87,20 @@ namespace kaleidoscope
     class ForExprAST
     {
     public:
-        ForExprAST(std::string varName, ExprAST start, ExprAST end, std::optional<ExprAST> step, ExprAST body);
+        ForExprAST(std::string varName, ExprAST start, ExprAST end, std::unique_ptr<ExprAST> step, ExprAST body);
 
         std::string const &getVarName() const noexcept;
         ExprAST const &getStart() const noexcept;
         ExprAST const &getEnd() const noexcept;
-        std::optional<ExprAST> const &getStep() const noexcept;
+        ExprAST const *getStep() const noexcept;
         ExprAST const &getBody() const noexcept;
 
     private:
         std::string varName_;
-        std::unique_ptr<ExprAST> start_, end_, body_;
-        std::unique_ptr<std::optional<ExprAST>> step_;
+        std::unique_ptr<ExprAST> start_;
+        std::unique_ptr<ExprAST> end_;
+        std::unique_ptr<ExprAST> step_;
+        std::unique_ptr<ExprAST> body_;
     };
 
     /// CallExprAST - Expression class for function calls.

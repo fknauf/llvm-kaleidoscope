@@ -43,7 +43,7 @@ namespace
         }
 
     public:
-        JITHandler(llvm::LLVMContext &context, Parser &p)
+        JITHandler(Parser &p)
             : jitCompiler_(ExitOnErr(KaleidoscopeJIT::Create())),
               codegen_(p, jitCompiler_->getDataLayout())
         {
@@ -52,19 +52,19 @@ namespace
         void HandleDefinition(Parser &p)
         {
             HandleParse(
-                p, &Parser::ParseDefinition, [this](auto &ast, auto &ir)
+                p, &Parser::ParseDefinition, [this](auto &, auto &)
                 { auto H = jitCompiler_->addModule(codegen_.stealModule()); });
         }
 
         void HandleExtern(Parser &p)
         {
-            HandleParse(p, &Parser::ParseExtern, [this](auto &ast, auto &ir)
+            HandleParse(p, &Parser::ParseExtern, [this](auto &ast, auto &)
                         { codegen_.registerExtern(ast); });
         }
 
         void HandleTopLevelExpression(Parser &p)
         {
-            HandleParse(p, &Parser::ParseTopLevelExpr, [this](auto &ast, auto &ir)
+            HandleParse(p, &Parser::ParseTopLevelExpr, [this](auto &, auto &)
                         {
             auto RT = jitCompiler_->getMainJITDylib().createResourceTracker();
             auto H = jitCompiler_->addModule(codegen_.stealModule(), RT);
@@ -89,9 +89,9 @@ namespace
     };
 
     /// top ::= definition | external | expression | ';'
-    static void MainLoop(llvm::LLVMContext &llvmContext, Parser &p)
+    static void MainLoop(Parser &p)
     {
-        JITHandler handler(llvmContext, p);
+        JITHandler handler(p);
 
         while (true)
         {
@@ -135,14 +135,12 @@ namespace
         using kaleidoscope::Lexer;
         using kaleidoscope::Parser;
 
-        llvm::LLVMContext llvmContext;
-
         Lexer lexer(in);
         Parser parser(lexer);
 
         parser.getNextToken();
 
-        MainLoop(llvmContext, parser);
+        MainLoop(parser);
     }
 }
 
