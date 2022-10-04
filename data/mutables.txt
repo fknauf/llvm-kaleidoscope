@@ -12,6 +12,7 @@ def test(x)
 
 test(123);
 
-var a = 1, b = a + 2 in (
-  a = b + 1
+var a = 1, b = a + 2, c in (
+  c = c + b :
+  a = c + 1
 ) : a;

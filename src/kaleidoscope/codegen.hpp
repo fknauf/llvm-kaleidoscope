@@ -53,6 +53,8 @@ namespace kaleidoscope
         void registerExtern(PrototypeAST ast);
 
     private:
+        llvm::Value *generateOptional(ExprAST const *ast, double defaultValue);
+
         llvm::Function *getFunction(std::string const &name, std::string const &errmsg_format);
         llvm::Value *getConstant(double value) const;
         llvm::Value *getBoolCondition(llvm::Value *condValue, llvm::Twine const &name);

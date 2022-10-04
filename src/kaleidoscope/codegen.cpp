@@ -48,6 +48,11 @@ namespace kaleidoscope
         return llvm::ConstantFP::get(*TheContext, llvm::APFloat(value));
     }
 
+    llvm::Value *CodeGenerator::generateOptional(ExprAST const *ast, double defaultValue)
+    {
+        return ast ? (*this)(*ast) : getConstant(defaultValue);
+    }
+
     llvm::Value *CodeGenerator::getBoolCondition(llvm::Value *condValue, llvm::Twine const &name)
     {
         return TheBuilder->CreateFCmpONE(condValue, getConstant(0.0), name);
@@ -195,7 +200,7 @@ namespace kaleidoscope
 
             (*this)(expr.getBody());
 
-            llvm::Value *StepVal = expr.getStep() ? (*this)(*expr.getStep()) : getConstant(1.0);
+            llvm::Value *StepVal = generateOptional(expr.getStep(), 1.0);
 
             llvm::Value *curLoopVarValue = TheBuilder->CreateLoad(llvm::Type::getDoubleTy(*TheContext), loopVarSpace, expr.getVarName());
             llvm::Value *nextLoopVarValue = TheBuilder->CreateFAdd(curLoopVarValue, StepVal, "nextVar");
@@ -219,7 +224,7 @@ namespace kaleidoscope
 
         for (auto &decl : expr.getDeclarations())
         {
-            llvm::Value *initVal = decl.getInitVal() ? (*this)(*decl.getInitVal()) : getConstant(0.0);
+            llvm::Value *initVal = generateOptional(decl.getInitVal(), 0.0);
 
             auto space = createScopedVariable(F, decl.getName());
             TheBuilder->CreateStore(initVal, space);
