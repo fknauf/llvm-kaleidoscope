@@ -12,7 +12,6 @@ namespace kaleidoscope
         llvm::FunctionAnalysisManager fam;
         llvm::CGSCCAnalysisManager cgam;
         llvm::ModuleAnalysisManager mam;
-        llvm::ModulePassManager passManager_;
 
         builder.registerModuleAnalyses(mam);
         builder.registerCGSCCAnalyses(cgam);

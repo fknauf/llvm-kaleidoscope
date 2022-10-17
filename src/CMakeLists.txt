@@ -16,6 +16,7 @@ add_library(kaleidoscope
             kaleidoscope/parser.cpp
             kaleidoscope/api_functions.cpp
             kaleidoscope/symbols.cpp
+            kaleidoscope/objcode.cpp
 )
 
 include_directories(BEFORE .)
@@ -26,3 +27,4 @@ add_executable(   parser_test frontends/parser_test.cpp)
 add_executable(  codegen_test frontends/codegen_test.cpp)
 add_executable(optimizer_test frontends/optimizer_test.cpp)
 add_executable(      jit_test frontends/jit_test.cpp)
+add_executable(  objcode_test frontends/objcode_test.cpp)
