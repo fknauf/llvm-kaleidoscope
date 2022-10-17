@@ -30,7 +30,7 @@ namespace kaleidoscope
     public:
         CodeGenerator(Parser &p, llvm::DataLayout dataLayout = llvm::DataLayout(""));
 
-        llvm::Value *operator()(ExprAST const &expr) { return std::visit(*this, expr); }
+        llvm::Value *operator()(ExprAST const &expr);
         llvm::Value *operator()(NumberExprAST const &expr);
         llvm::Value *operator()(VariableExprAST const &expr);
         llvm::Value *operator()(UnaryExprAST const &expr);

@@ -64,6 +64,11 @@ namespace kaleidoscope
         return tempBuilder.CreateAlloca(llvm::Type::getDoubleTy(*TheContext), 0, varName.c_str());
     }
 
+    llvm::Value *CodeGenerator::operator()(ExprAST const &expr)
+    {
+        return std::visit(*this, expr);
+    }
+
     llvm::Value *CodeGenerator::operator()(NumberExprAST const &expr)
     {
         return getConstant(expr.getVal());
@@ -224,7 +229,7 @@ namespace kaleidoscope
 
         for (auto &decl : expr.getDeclarations())
         {
-            llvm::Value *initVal = generateOptional(decl.getInitVal(), 0.0);
+            llvm::Value *initVal = (*this)(decl.getInitVal());
 
             auto space = createScopedVariable(F, decl.getName());
             TheBuilder->CreateStore(initVal, space);

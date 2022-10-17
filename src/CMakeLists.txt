@@ -1,11 +1,12 @@
 project(kaleidoscope)
 
 set(CMAKE_BUILD_TYPE Debug)
-#set(CMAKE_CXX_COMPILER clang++-16)
+set(CMAKE_CXX_COMPILER clang++-14)
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
+add_compile_options(-Wall -Wextra -Werror -fstack-protector -fstack-protector-all -fsanitize=address -fsanitize=undefined)
+add_link_options(-fsanitize=address -fsanitize=undefined)
 
-link_libraries(LLVM-14)
+link_libraries(c++abi LLVM-14)
 add_library(kaleidoscope
             kaleidoscope/ast.cpp
             kaleidoscope/codegen.cpp

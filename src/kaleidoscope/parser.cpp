@@ -280,11 +280,11 @@ namespace kaleidoscope
         do
         {
             std::string name = expectIdentifier("Expected identifier list after 'var'");
-            std::unique_ptr<ExprAST> initVal;
+            ExprAST initVal = NumberExprAST(0.0);
 
             if (tryConsumeChar('='))
             {
-                initVal = std::make_unique<ExprAST>(ParseExpression());
+                initVal = ParseExpression();
             }
 
             varDecls.emplace_back(name, std::move(initVal));

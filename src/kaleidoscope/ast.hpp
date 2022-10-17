@@ -31,9 +31,9 @@ namespace kaleidoscope
         double Val;
 
     public:
-        NumberExprAST(double Val) : Val(Val) {}
+        NumberExprAST(double Val);
 
-        double getVal() const noexcept { return Val; }
+        double getVal() const noexcept;
     };
 
     /// VariableExprAST - Expression class for referencing a variable, like "a".
@@ -42,9 +42,9 @@ namespace kaleidoscope
         std::string Name;
 
     public:
-        VariableExprAST(const std::string &Name) : Name(Name) {}
+        VariableExprAST(const std::string &Name);
 
-        std::string const &getName() const noexcept { return Name; }
+        std::string const &getName() const noexcept;
     };
 
     class UnaryExprAST
@@ -55,7 +55,7 @@ namespace kaleidoscope
     public:
         UnaryExprAST(char op, ExprAST opd);
 
-        char getOp() const noexcept { return Op; }
+        char getOp() const noexcept;
         ExprAST const &getOperand() const noexcept;
     };
 
@@ -68,7 +68,7 @@ namespace kaleidoscope
     public:
         BinaryExprAST(char op, ExprAST LHS, ExprAST RHS);
 
-        char getOp() const noexcept { return Op; }
+        char getOp() const noexcept;
         ExprAST const &getLHS() const noexcept;
         ExprAST const &getRHS() const noexcept;
     };
@@ -108,10 +108,10 @@ namespace kaleidoscope
     class VariableDeclarationAST
     {
     public:
-        VariableDeclarationAST(std::string const &name, std::unique_ptr<ExprAST> initVal);
+        VariableDeclarationAST(std::string const &name, ExprAST initVal);
 
         std::string const &getName() const noexcept;
-        ExprAST const *getInitVal() const noexcept;
+        ExprAST const &getInitVal() const noexcept;
 
     private:
         std::string name_;
@@ -138,8 +138,13 @@ namespace kaleidoscope
         std::vector<ExprAST> Args;
 
     public:
+        CallExprAST(CallExprAST const &) = delete;
+        CallExprAST(CallExprAST &&) = default;
         CallExprAST(const std::string &Callee,
                     std::vector<ExprAST> Args);
+
+        CallExprAST &operator=(CallExprAST const &) = delete;
+        CallExprAST &operator=(CallExprAST &&) = default;
 
         std::string const &getCallee() const noexcept;
         std::vector<ExprAST> const &getArgs() const noexcept;
@@ -175,12 +180,10 @@ namespace kaleidoscope
         ExprAST Body;
 
     public:
-        FunctionAST(PrototypeAST Proto,
-                    ExprAST Body)
-            : Proto(std::move(Proto)), Body(std::move(Body)) {}
+        FunctionAST(PrototypeAST Proto, ExprAST Body);
 
-        PrototypeAST const &getProto() const noexcept { return Proto; }
-        ExprAST const &getBody() const noexcept { return Body; }
+        PrototypeAST const &getProto() const noexcept;
+        ExprAST const &getBody() const noexcept;
     };
 } // namespace kaleidoscope
 

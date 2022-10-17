@@ -4,10 +4,31 @@
 
 namespace kaleidoscope
 {
+    NumberExprAST::NumberExprAST(double Val)
+        : Val(Val) {}
+
+    double NumberExprAST::getVal() const noexcept
+    {
+        return Val;
+    }
+
+    VariableExprAST::VariableExprAST(const std::string &Name)
+        : Name(Name) {}
+
+    std::string const &VariableExprAST::getName() const noexcept
+    {
+        return Name;
+    }
+
     UnaryExprAST::UnaryExprAST(char op, ExprAST opd)
         : Op(op),
           Operand(std::make_unique<ExprAST>(std::move(opd)))
     {
+    }
+
+    char UnaryExprAST::getOp() const noexcept
+    {
+        return Op;
     }
 
     ExprAST const &UnaryExprAST::getOperand() const noexcept
@@ -19,6 +40,11 @@ namespace kaleidoscope
         : Op(op),
           LHS(std::make_unique<ExprAST>(std::move(LHS))),
           RHS(std::make_unique<ExprAST>(std::move(RHS))) {}
+
+    char BinaryExprAST::getOp() const noexcept
+    {
+        return Op;
+    }
 
     ExprAST const &BinaryExprAST::getLHS() const noexcept
     {
@@ -97,11 +123,14 @@ namespace kaleidoscope
     {
     }
 
-    VariableDeclarationAST::VariableDeclarationAST(std::string const &name, std::unique_ptr<ExprAST> initVal)
-        : name_(name), initVal_(std::move(initVal)) {}
+    VariableDeclarationAST::VariableDeclarationAST(std::string const &name, ExprAST initVal)
+        : name_(name),
+          initVal_(std::make_unique<ExprAST>(std::move(initVal)))
+    {
+    }
 
     std::string const &VariableDeclarationAST::getName() const noexcept { return name_; }
-    ExprAST const *VariableDeclarationAST::getInitVal() const noexcept { return initVal_.get(); }
+    ExprAST const &VariableDeclarationAST::getInitVal() const noexcept { return *initVal_; }
 
     VarExprAST::VarExprAST(std::vector<VariableDeclarationAST> declarations, ExprAST Body)
         : declarations_(std::move(declarations)),
@@ -142,4 +171,11 @@ namespace kaleidoscope
     {
         return precedence_;
     }
+
+    FunctionAST::FunctionAST(PrototypeAST Proto,
+                             ExprAST Body)
+        : Proto(std::move(Proto)), Body(std::move(Body)) {}
+
+    PrototypeAST const &FunctionAST::getProto() const noexcept { return Proto; }
+    ExprAST const &FunctionAST::getBody() const noexcept { return Body; }
 }
