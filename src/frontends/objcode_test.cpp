@@ -23,16 +23,17 @@ namespace
     {
     private:
         template <typename T, typename F>
-        void HandleParse(Parser &p,
-                         T (Parser::*parseFunction)(),
-                         F &&irHandler)
+        void HandleParse(
+            Parser &p,
+            T (Parser::*parseFunction)(),
+            F &&astHandler)
         {
             try
             {
                 auto ast = (p.*parseFunction)();
-                auto ir = codegen_(ast);
+                codegen_(ast);
 
-                irHandler(ast, ir);
+                astHandler(ast);
             }
             catch (Error const &e)
             {
@@ -40,6 +41,12 @@ namespace
                 // Skip token for error recovery.
                 p.getNextToken();
             }
+        }
+
+        template <typename T>
+        void HandleParse(Parser &p, T (Parser::*parseFunction)())
+        {
+            HandleParse(p, parseFunction, [](auto &) {});
         }
 
     public:
@@ -50,20 +57,19 @@ namespace
 
         void HandleDefinition(Parser &p)
         {
-            HandleParse(
-                p, &Parser::ParseDefinition, [](auto &, auto &) {});
+            HandleParse(p, &Parser::ParseDefinition);
         }
 
         void
         HandleExtern(Parser &p)
         {
-            HandleParse(p, &Parser::ParseExtern, [this](auto &ast, auto &)
+            HandleParse(p, &Parser::ParseExtern, [this](auto &ast)
                         { codegen_.registerExtern(ast); });
         }
 
         void HandleTopLevelExpression(Parser &p)
         {
-            HandleParse(p, &Parser::ParseTopLevelExpr, [](auto &, auto &) {});
+            HandleParse(p, &Parser::ParseTopLevelExpr);
         }
 
         void writeModuleToFile(std::string const &fileName, llvm::CodeGenFileType fileType = llvm::CGFT_ObjectFile)
