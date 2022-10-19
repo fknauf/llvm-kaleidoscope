@@ -15,21 +15,43 @@ namespace kaleidoscope
     {
     }
 
-    Token Lexer::gettok()
+    bool Lexer::advance()
     {
-        if (std::isspace(LastChar))
+        if (in_.get(LastChar))
         {
-            if (!(in_ >> LastChar))
-            {
-                return tok_eof;
-            }
+            srcLoc_.advance(LastChar);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    void Lexer::discardLine()
+    {
+        while (in_.get(LastChar) && LastChar != '\n')
+        {
         }
 
-        if (std::isalpha(LastChar))
+        srcLoc_.advanceLine();
+    }
+
+    Token Lexer::gettok()
+    {
+        while (std::isspace(LastChar) && advance())
+        {
+        }
+
+        if (!in_)
+        {
+            return tok_eof;
+        }
+        else if (std::isalpha(LastChar))
         {
             std::string identifier({LastChar});
 
-            while (in_.get(LastChar) && std::isalnum(LastChar))
+            while (advance() && std::isalnum(LastChar))
             {
                 identifier += LastChar;
             }
@@ -49,7 +71,7 @@ namespace kaleidoscope
             do
             {
                 NumStr += LastChar;
-            } while (in_.get(LastChar) && (std::isdigit(LastChar) || LastChar == '.'));
+            } while (advance() && (std::isdigit(LastChar) || LastChar == '.'));
 
             std::istringstream parser(NumStr);
             double NumVal = 0.0;
@@ -59,20 +81,12 @@ namespace kaleidoscope
         }
         else if (LastChar == '#')
         {
-            while (in_.get(LastChar) && LastChar != '\n' && LastChar != '\r')
-            {
-            }
-
+            discardLine();
             return gettok();
         }
 
-        if (!in_)
-        {
-            return tok_eof;
-        }
-
         char ThisChar = LastChar;
-        in_.get(LastChar);
+        advance();
 
         return ThisChar;
     }

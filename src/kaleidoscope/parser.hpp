@@ -20,10 +20,11 @@ namespace kaleidoscope
     class Parser
     {
     public:
-        Parser(Lexer &lexer);
+        Parser(Lexer &lexer, std::string const &topLevelSymbolName = "__anon_expr");
 
         Token getNextToken() { return CurTok = lexer_.gettok(); }
         Token getCurrentToken() { return CurTok; }
+        std::string const &getTopLevelSymbolName() const { return topLevelSymbolName_; }
 
         NumberExprAST ParseNumberExpr();
         ExprAST ParseParenExpr();
@@ -56,6 +57,7 @@ namespace kaleidoscope
         bool tryConsumeKeyword(TokenType expected);
 
         Lexer &lexer_;
+        std::string topLevelSymbolName_;
         Token CurTok{tok_eof};
 
         std::unordered_map<char, int> binOpPrecedence;

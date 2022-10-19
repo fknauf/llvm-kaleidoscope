@@ -8,15 +8,16 @@ add_link_options(-fsanitize=address -fsanitize=undefined)
 
 link_libraries(c++abi LLVM-14)
 add_library(kaleidoscope
+            kaleidoscope/api_functions.cpp
             kaleidoscope/ast.cpp
             kaleidoscope/codegen.cpp
             kaleidoscope/jit.cpp
             kaleidoscope/lexer.cpp
+            kaleidoscope/objcode.cpp
             kaleidoscope/optimizer.cpp
             kaleidoscope/parser.cpp
-            kaleidoscope/api_functions.cpp
+            kaleidoscope/sourcelocation.cpp
             kaleidoscope/symbols.cpp
-            kaleidoscope/objcode.cpp
 )
 
 include_directories(BEFORE .)
@@ -28,3 +29,4 @@ add_executable(  codegen_test frontends/codegen_test.cpp)
 add_executable(optimizer_test frontends/optimizer_test.cpp)
 add_executable(      jit_test frontends/jit_test.cpp)
 add_executable(  objcode_test frontends/objcode_test.cpp)
+add_executable(    debug_test frontends/debug_test.cpp)

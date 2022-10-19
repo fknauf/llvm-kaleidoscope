@@ -11,8 +11,9 @@ namespace kaleidoscope
     {
     }
 
-    Parser::Parser(Lexer &lexer)
+    Parser::Parser(Lexer &lexer, std::string const &topLevelSymbolName)
         : lexer_(lexer),
+          topLevelSymbolName_(topLevelSymbolName),
           binOpPrecedence{
               {'=', 2}, {'<', 10}, {'+', 20}, {'-', 20}, {'*', 40}, {'/', 40}}
     {
@@ -103,7 +104,7 @@ namespace kaleidoscope
 
     NumberExprAST Parser::ParseNumberExpr()
     {
-        auto Result = CurTok.getNumValue();
+        NumberExprAST Result(lexer_.getLocation(), CurTok.getNumValue());
         getNextToken(); // consume the number
         return Result;
     }
@@ -120,13 +121,14 @@ namespace kaleidoscope
 
     ExprAST Parser::ParseIdentifierExpr()
     {
+        SourceLocation loc = lexer_.getLocation();
         std::string IdName = CurTok.getIdentifierValue();
 
         getNextToken(); // eat identifier.
 
         if (!tryConsumeChar('(')) // Simple variable ref.
         {
-            return VariableExprAST(IdName);
+            return VariableExprAST(loc, IdName);
         }
 
         // Call.
@@ -147,34 +149,29 @@ namespace kaleidoscope
         // Eat the ')'.
         getNextToken();
 
-        return CallExprAST(IdName, std::move(Args));
+        return CallExprAST(loc, IdName, std::move(Args));
     }
 
     ExprAST Parser::ParsePrimary()
     {
-        if (CurTok.getType() == tok_identifier)
+        switch (CurTok.getType())
         {
+        case tok_identifier:
             return ParseIdentifierExpr();
-        }
-        else if (CurTok.getType() == tok_number)
-        {
+        case tok_number:
             return ParseNumberExpr();
-        }
-        else if (CurTok.getType() == tok_if)
-        {
+        case tok_if:
             return ParseIfExpr();
-        }
-        else if (CurTok.getType() == tok_for)
-        {
+        case tok_for:
             return ParseForExpr();
-        }
-        else if (CurTok.getType() == tok_var)
-        {
+        case tok_var:
             return ParseVarExpr();
-        }
-        else if (CurTok == '(')
-        {
-            return ParseParenExpr();
+        default:
+            if (CurTok == '(')
+            {
+                return ParseParenExpr();
+            }
+            break;
         }
 
         throw ParseError("unknown token when expecting an expression");
@@ -189,6 +186,8 @@ namespace kaleidoscope
 
     ExprAST Parser::ParseUnary()
     {
+        SourceLocation loc = lexer_.getLocation();
+
         if (CurTok == '(' ||
             CurTok == ',' ||
             CurTok.getType() != tok_char)
@@ -199,7 +198,7 @@ namespace kaleidoscope
         char op = expectAscii("invalid unary operator %1%");
         auto opd = ParseUnary();
 
-        return UnaryExprAST(op, std::move(opd));
+        return UnaryExprAST(loc, op, std::move(opd));
     }
 
     ExprAST Parser::ParseBinOpRHS(int ExprPrec,
@@ -213,10 +212,14 @@ namespace kaleidoscope
             // If this is a binop that binds at least as tightly as the current binop,
             // consume it, otherwise we are done.
             if (TokPrec < ExprPrec)
+            {
                 return std::move(LHS);
+            }
             // Okay, we know this is a binop.
 
             int BinOp = CurTok.getCharValue();
+            SourceLocation loc = lexer_.getLocation();
+
             getNextToken(); // eat binop
 
             // Parse the primary expression after the binary operator.
@@ -228,12 +231,14 @@ namespace kaleidoscope
             }
 
             // Merge LHS/RHS.
-            LHS = BinaryExprAST(BinOp, std::move(LHS), std::move(RHS));
+            LHS = BinaryExprAST(loc, BinOp, std::move(LHS), std::move(RHS));
         } // loop around to the top of the while loop.
     }
 
     IfExprAST Parser::ParseIfExpr()
     {
+        SourceLocation loc = lexer_.getLocation();
+
         getNextToken();
 
         // condition.
@@ -245,11 +250,12 @@ namespace kaleidoscope
         expectKeyword(tok_else, "expected else");
         auto Else = ParseExpression();
 
-        return {std::move(Cond), std::move(Then), std::move(Else)};
+        return {loc, std::move(Cond), std::move(Then), std::move(Else)};
     }
 
     ForExprAST Parser::ParseForExpr()
     {
+        SourceLocation loc = lexer_.getLocation();
         getNextToken(); // consume for
 
         std::string varName = expectIdentifier("expected identifier after for");
@@ -268,37 +274,41 @@ namespace kaleidoscope
         expectKeyword(tok_in, "expected 'in' after for");
         auto body = ParseExpression();
 
-        return ForExprAST(varName, std::move(start), std::move(end), std::move(step), std::move(body));
+        return {loc, varName, std::move(start), std::move(end), std::move(step), std::move(body)};
     }
 
     VarExprAST Parser::ParseVarExpr()
     {
+        SourceLocation varLoc = lexer_.getLocation();
         getNextToken();
 
         std::vector<VariableDeclarationAST> varDecls;
 
         do
         {
+            SourceLocation identLoc = lexer_.getLocation();
             std::string name = expectIdentifier("Expected identifier list after 'var'");
-            ExprAST initVal = NumberExprAST(0.0);
+            ExprAST initVal = NumberExprAST(lexer_.getLocation(), 0.0);
 
             if (tryConsumeChar('='))
             {
                 initVal = ParseExpression();
             }
 
-            varDecls.emplace_back(name, std::move(initVal));
+            varDecls.emplace_back(identLoc, name, std::move(initVal));
         } while (tryConsumeChar(','));
 
         expectKeyword(tok_in, "expected 'in' keyword after 'var'");
 
         auto body = ParseExpression();
 
-        return VarExprAST(std::move(varDecls), std::move(body));
+        return {varLoc, std::move(varDecls), std::move(body)};
     }
 
     PrototypeAST Parser::ParsePrototype()
     {
+        SourceLocation loc = lexer_.getLocation();
+
         std::size_t opArgsCount;
         std::string FnName;
         int binprecedence = 30;
@@ -350,16 +360,18 @@ namespace kaleidoscope
 
         // success.
 
-        return PrototypeAST(FnName, std::move(ArgNames), opArgsCount != 0, binprecedence);
+        return {loc, FnName, std::move(ArgNames), opArgsCount != 0, binprecedence};
     }
 
     FunctionAST Parser::ParseDefinition()
     {
+        SourceLocation loc = lexer_.getLocation();
+
         getNextToken(); // eat def.
         auto Proto = ParsePrototype();
         auto E = ParseExpression();
 
-        return FunctionAST(std::move(Proto), std::move(E));
+        return {loc, std::move(Proto), std::move(E)};
     }
 
     PrototypeAST Parser::ParseExtern()
@@ -370,10 +382,11 @@ namespace kaleidoscope
 
     FunctionAST Parser::ParseTopLevelExpr()
     {
+        SourceLocation loc = lexer_.getLocation();
         auto E = ParseExpression();
         // Make an anonymous proto.
-        PrototypeAST Proto{"__anon_expr", std::vector<std::string>()};
-        return {std::move(Proto), std::move(E)};
+        PrototypeAST Proto{loc, topLevelSymbolName_, std::vector<std::string>()};
+        return {loc, std::move(Proto), std::move(E)};
     }
 
     void Parser::registerOperator(PrototypeAST const &operatorProto)

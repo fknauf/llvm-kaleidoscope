@@ -1,6 +1,7 @@
 #ifndef INCLUDED_KALEIDOSCOPE_LEXER_HPP
 #define INCLUDED_KALEIDOSCOPE_LEXER_HPP
 
+#include "sourcelocation.hpp"
 #include "token.hpp"
 
 #include <istream>
@@ -14,10 +15,16 @@ namespace kaleidoscope
         Lexer(std::istream &in);
 
         Token gettok();
+        SourceLocation const &getLocation() const { return srcLoc_; }
 
     private:
+        bool advance();
+        void discardLine();
+
         std::istream &in_;
         char LastChar = ' ';
+
+        SourceLocation srcLoc_;
 
         std::map<std::string, TokenType> keywords_;
     };

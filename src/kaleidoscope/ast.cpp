@@ -4,24 +4,27 @@
 
 namespace kaleidoscope
 {
-    NumberExprAST::NumberExprAST(double Val)
-        : Val(Val) {}
+    ASTBase::~ASTBase() {}
+
+    NumberExprAST::NumberExprAST(SourceLocation const &loc, double Val)
+        : ASTBase(loc), Val(Val) {}
 
     double NumberExprAST::getVal() const noexcept
     {
         return Val;
     }
 
-    VariableExprAST::VariableExprAST(const std::string &Name)
-        : Name(Name) {}
+    VariableExprAST::VariableExprAST(SourceLocation const &loc, const std::string &Name)
+        : ASTBase(loc), Name(Name) {}
 
     std::string const &VariableExprAST::getName() const noexcept
     {
         return Name;
     }
 
-    UnaryExprAST::UnaryExprAST(char op, ExprAST opd)
-        : Op(op),
+    UnaryExprAST::UnaryExprAST(SourceLocation const &loc, char op, ExprAST opd)
+        : ASTBase(loc),
+          Op(op),
           Operand(std::make_unique<ExprAST>(std::move(opd)))
     {
     }
@@ -36,8 +39,9 @@ namespace kaleidoscope
         return *Operand;
     }
 
-    BinaryExprAST::BinaryExprAST(char op, ExprAST LHS, ExprAST RHS)
-        : Op(op),
+    BinaryExprAST::BinaryExprAST(SourceLocation const &loc, char op, ExprAST LHS, ExprAST RHS)
+        : ASTBase(loc),
+          Op(op),
           LHS(std::make_unique<ExprAST>(std::move(LHS))),
           RHS(std::make_unique<ExprAST>(std::move(RHS))) {}
 
@@ -55,8 +59,9 @@ namespace kaleidoscope
         return *RHS;
     }
 
-    IfExprAST::IfExprAST(ExprAST Cond, ExprAST ThenBranch, ExprAST ElseBranch)
-        : condition_(std::make_unique<ExprAST>(std::move(Cond))),
+    IfExprAST::IfExprAST(SourceLocation const &loc, ExprAST Cond, ExprAST ThenBranch, ExprAST ElseBranch)
+        : ASTBase(loc),
+          condition_(std::make_unique<ExprAST>(std::move(Cond))),
           thenBranch_(std::make_unique<ExprAST>(std::move(ThenBranch))),
           elseBranch_(std::make_unique<ExprAST>(std::move(ElseBranch)))
     {
@@ -75,8 +80,9 @@ namespace kaleidoscope
         return *elseBranch_;
     }
 
-    ForExprAST::ForExprAST(std::string varName, ExprAST start, ExprAST end, std::unique_ptr<ExprAST> step, ExprAST body)
-        : varName_(varName),
+    ForExprAST::ForExprAST(SourceLocation const &loc, std::string varName, ExprAST start, ExprAST end, std::unique_ptr<ExprAST> step, ExprAST body)
+        : ASTBase(loc),
+          varName_(varName),
           start_(std::make_unique<ExprAST>(std::move(start))),
           end_(std::make_unique<ExprAST>(std::move(end))),
           step_(std::move(step)),
@@ -105,26 +111,30 @@ namespace kaleidoscope
         return *body_;
     }
 
-    CallExprAST::CallExprAST(const std::string &Callee,
+    CallExprAST::CallExprAST(SourceLocation const &loc,
+                             const std::string &Callee,
                              std::vector<ExprAST> Args)
-        : Callee(Callee), Args(std::move(Args)) {}
+        : ASTBase(loc), Callee(Callee), Args(std::move(Args)) {}
 
     std::string const &CallExprAST::getCallee() const noexcept { return Callee; }
     std::vector<ExprAST> const &CallExprAST::getArgs() const noexcept { return Args; }
 
-    PrototypeAST::PrototypeAST(const std::string &name,
+    PrototypeAST::PrototypeAST(SourceLocation const &loc,
+                               const std::string &name,
                                std::vector<std::string> Args,
                                bool isOperator,
                                int precedence)
-        : Name(name),
+        : ASTBase(loc),
+          Name(name),
           Args(std::move(Args)),
           isOperator_(isOperator),
           precedence_(precedence)
     {
     }
 
-    VariableDeclarationAST::VariableDeclarationAST(std::string const &name, ExprAST initVal)
-        : name_(name),
+    VariableDeclarationAST::VariableDeclarationAST(SourceLocation const &loc, std::string const &name, ExprAST initVal)
+        : ASTBase(loc),
+          name_(name),
           initVal_(std::make_unique<ExprAST>(std::move(initVal)))
     {
     }
@@ -132,8 +142,9 @@ namespace kaleidoscope
     std::string const &VariableDeclarationAST::getName() const noexcept { return name_; }
     ExprAST const &VariableDeclarationAST::getInitVal() const noexcept { return *initVal_; }
 
-    VarExprAST::VarExprAST(std::vector<VariableDeclarationAST> declarations, ExprAST Body)
-        : declarations_(std::move(declarations)),
+    VarExprAST::VarExprAST(SourceLocation const &loc, std::vector<VariableDeclarationAST> declarations, ExprAST Body)
+        : ASTBase(loc),
+          declarations_(std::move(declarations)),
           body_(std::make_unique<ExprAST>(std::move(Body)))
     {
     }
@@ -172,9 +183,10 @@ namespace kaleidoscope
         return precedence_;
     }
 
-    FunctionAST::FunctionAST(PrototypeAST Proto,
+    FunctionAST::FunctionAST(SourceLocation const &loc,
+                             PrototypeAST Proto,
                              ExprAST Body)
-        : Proto(std::move(Proto)), Body(std::move(Body)) {}
+        : ASTBase(loc), Proto(std::move(Proto)), Body(std::move(Body)) {}
 
     PrototypeAST const &FunctionAST::getProto() const noexcept { return Proto; }
     ExprAST const &FunctionAST::getBody() const noexcept { return Body; }
