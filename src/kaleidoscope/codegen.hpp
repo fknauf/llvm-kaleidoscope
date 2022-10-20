@@ -45,10 +45,7 @@ namespace kaleidoscope
         llvm::Function *operator()(PrototypeAST const &expr);
         llvm::Function *operator()(FunctionAST const &expr);
 
-        llvm::Module &getModule() { return *TheModule; }
-        llvm::Module const &getModule() const { return *TheModule; }
-
-        llvm::orc::ThreadSafeModule stealModule(std::string const &newModuleName = "module");
+        llvm::orc::ThreadSafeModule finalizeModule(std::string const &newModuleName = "module");
 
         void registerExtern(PrototypeAST ast);
 

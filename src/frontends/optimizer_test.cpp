@@ -57,7 +57,7 @@ namespace
 
         llvm::orc::ThreadSafeModule stealFinalModule()
         {
-            return codegen_.stealModule();
+            return codegen_.finalizeModule();
         }
 
     private:

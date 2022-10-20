@@ -72,7 +72,7 @@ namespace
 
         void DumpCode()
         {
-            codegen_.stealModule().getModuleUnlocked()->print(llvm::errs(), nullptr);
+            codegen_.finalizeModule().getModuleUnlocked()->print(llvm::errs(), nullptr);
         }
 
     private:

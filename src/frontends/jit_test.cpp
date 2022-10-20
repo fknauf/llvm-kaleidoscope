@@ -54,7 +54,7 @@ namespace
         {
             HandleParse(
                 p, &Parser::ParseDefinition, [this](auto &, auto &)
-                { auto H = jitCompiler_->addModule(codegen_.stealModule()); });
+                { auto H = jitCompiler_->addModule(codegen_.finalizeModule()); });
         }
 
         void HandleExtern(Parser &p)
@@ -68,7 +68,7 @@ namespace
             HandleParse(p, &Parser::ParseTopLevelExpr, [this](auto &, auto &)
                         {
             auto RT = jitCompiler_->getMainJITDylib().createResourceTracker();
-            auto module = codegen_.stealModule();
+            auto module = codegen_.finalizeModule();
             optimizeModule(*module.getModuleUnlocked());
             auto H = jitCompiler_->addModule(std::move(module), RT);
 
@@ -84,7 +84,7 @@ namespace
 
         auto stealFinalModule()
         {
-            return codegen_.stealModule();
+            return codegen_.finalizeModule();
         }
 
     private:

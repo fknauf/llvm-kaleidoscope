@@ -26,10 +26,10 @@ namespace kaleidoscope
           globalSymbols_(nullptr),
           activeScope_(&globalSymbols_)
     {
-        stealModule(moduleName);
+        finalizeModule(moduleName);
     }
 
-    llvm::orc::ThreadSafeModule CodeGenerator::stealModule(std::string const &newModuleName)
+    llvm::orc::ThreadSafeModule CodeGenerator::finalizeModule(std::string const &newModuleName)
     {
         if (debugInfo_)
         {
