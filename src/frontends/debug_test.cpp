@@ -1,6 +1,5 @@
 #include "kaleidoscope/codegen.hpp"
 #include "kaleidoscope/lexer.hpp"
-#include "kaleidoscope/objcode.hpp"
 #include "kaleidoscope/parser.hpp"
 #include "kaleidoscope/jit.hpp"
 
@@ -14,7 +13,6 @@ using kaleidoscope::CodeGenerator;
 using kaleidoscope::Error;
 using kaleidoscope::KaleidoscopeJIT;
 using kaleidoscope::Lexer;
-using kaleidoscope::ObjCodeWriter;
 using kaleidoscope::ParseError;
 using kaleidoscope::Parser;
 
@@ -31,7 +29,7 @@ namespace
             try
             {
                 auto ast = (p.*parseFunction)();
-                auto ir = codegen_(ast);
+                codegen_(ast);
 
                 astHandler(ast);
             }
@@ -51,7 +49,8 @@ namespace
 
     public:
         DebugInfoHandler(Parser &p)
-            : codegen_(p, objWriter_.getDataLayout())
+            : jit_(ExitOnErr(KaleidoscopeJIT::Create())),
+              codegen_(p, jit_->getDataLayout())
         {
         }
 
@@ -71,21 +70,14 @@ namespace
             HandleParse(p, &Parser::ParseTopLevelExpr);
         }
 
-        void writeModuleToFile(std::string const &fileName, llvm::CodeGenFileType fileType = llvm::CGFT_ObjectFile)
+        void DumpCode()
         {
-            std::error_code ec;
-            llvm::raw_fd_ostream dest(fileName, ec, llvm::sys::fs::OF_None);
-
-            if (ec)
-            {
-                throw std::runtime_error(ec.message());
-            }
-
-            objWriter_.writeModuleToStream(dest, codegen_.getModule(), fileType);
+            codegen_.stealModule().getModuleUnlocked()->print(llvm::errs(), nullptr);
         }
 
     private:
-        ObjCodeWriter objWriter_;
+        llvm::ExitOnError ExitOnErr;
+        std::unique_ptr<KaleidoscopeJIT> jit_;
         CodeGenerator codegen_;
     };
 
@@ -99,8 +91,8 @@ namespace
             switch (p.getCurrentToken().getType())
             {
             case kaleidoscope::tok_eof:
-            {
-            }
+                handler.DumpCode();
+                return;
             case kaleidoscope::tok_def:
                 handler.HandleDefinition(p);
                 break;

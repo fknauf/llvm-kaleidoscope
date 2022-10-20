@@ -19,26 +19,35 @@ namespace kaleidoscope
     {
     }
 
-    CodeGenerator::CodeGenerator(Parser &p, llvm::DataLayout dataLayout)
+    CodeGenerator::CodeGenerator(Parser &p, llvm::DataLayout dataLayout, std::string const &moduleName)
         : TheParser(p),
           dataLayout(std::move(dataLayout)),
           TheContext(std::make_unique<llvm::LLVMContext>()),
           globalSymbols_(nullptr),
           activeScope_(&globalSymbols_)
     {
-        stealModule();
+        stealModule(moduleName);
     }
 
-    llvm::orc::ThreadSafeModule CodeGenerator::stealModule()
+    llvm::orc::ThreadSafeModule CodeGenerator::stealModule(std::string const &newModuleName)
     {
-        auto ctx = std::make_unique<llvm::LLVMContext>();
-        auto mod = std::make_unique<llvm::Module>("", *ctx);
+        if (debugInfo_)
+        {
+            debugInfo_->finalize();
+        }
 
+        auto ctx = std::make_unique<llvm::LLVMContext>();
+        auto mod = std::make_unique<llvm::Module>(newModuleName, *ctx);
         mod->setDataLayout(dataLayout);
 
         TheContext.swap(ctx);
         TheModule.swap(mod);
         TheBuilder = std::make_unique<llvm::IRBuilder<>>(*TheContext);
+
+        TheModule->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
+        // TheModule->addModuleFlag(llvm::Module::Warning, "CodeView", 1);
+
+        debugInfo_ = std::make_unique<DebugInfo>(*TheModule);
 
         return llvm::orc::ThreadSafeModule(std::move(mod), std::move(ctx));
     }
@@ -71,6 +80,7 @@ namespace kaleidoscope
 
     llvm::Value *CodeGenerator::operator()(NumberExprAST const &expr)
     {
+        debugInfo_->emitLocation(*TheBuilder, expr.getLocation());
         return getConstant(expr.getVal());
     }
 
@@ -83,6 +93,7 @@ namespace kaleidoscope
             throw CodeGenerationError("Unknown variable " + expr.getName());
         }
 
+        debugInfo_->emitLocation(*TheBuilder, expr.getLocation());
         return TheBuilder->CreateLoad(llvm::Type::getDoubleTy(*TheContext), value, expr.getName().c_str());
     }
 
@@ -90,31 +101,17 @@ namespace kaleidoscope
     {
         auto opd = (*this)(expr.getOperand());
         auto F = getFunction(std::string("unary") + expr.getOp(), "Unknown unary operator %1%");
+
+        debugInfo_->emitLocation(*TheBuilder, expr.getLocation());
         return TheBuilder->CreateCall(F, opd, "unop");
     }
 
     llvm::Value *CodeGenerator::operator()(BinaryExprAST const &expr)
     {
-        llvm::Value *L = (*this)(expr.getLHS());
-        llvm::Value *R = (*this)(expr.getRHS());
+        debugInfo_->emitLocation(*TheBuilder, expr.getLocation());
 
-        switch (expr.getOp())
+        if (expr.getOp() == '=')
         {
-        case '+':
-            return TheBuilder->CreateFAdd(L, R, "addtmp");
-        case '-':
-            return TheBuilder->CreateFSub(L, R, "subtmp");
-        case '*':
-            return TheBuilder->CreateFMul(L, R, "multmp");
-        case '/':
-            return TheBuilder->CreateFDiv(L, R, "divtmp");
-        case '<':
-        {
-            llvm::Value *C = TheBuilder->CreateFCmpULT(L, R, "cmptmp");
-
-            return TheBuilder->CreateUIToFP(C, llvm::Type::getDoubleTy(*TheContext), "booltmp");
-        }
-        case '=':
             if (auto destVarAST = std::get_if<VariableExprAST>(&expr.getLHS()))
             {
                 auto destVarSpace = activeScope_->tryLookup(destVarAST->getName());
@@ -128,18 +125,43 @@ namespace kaleidoscope
             {
                 throw CodeGenerationError("destination of '=' must be a variable");
             }
-        default:
-            break;
         }
+        else
+        {
+            llvm::Value *L = (*this)(expr.getLHS());
+            llvm::Value *R = (*this)(expr.getRHS());
 
-        auto F = getFunction(std::string("binary") + expr.getOp(), "binary operator %1% not found!");
+            switch (expr.getOp())
+            {
+            case '+':
+                return TheBuilder->CreateFAdd(L, R, "addtmp");
+            case '-':
+                return TheBuilder->CreateFSub(L, R, "subtmp");
+            case '*':
+                return TheBuilder->CreateFMul(L, R, "multmp");
+            case '/':
+                return TheBuilder->CreateFDiv(L, R, "divtmp");
+            case '<':
+            {
+                llvm::Value *C = TheBuilder->CreateFCmpULT(L, R, "cmptmp");
 
-        llvm::Value *Vals[] = {L, R};
-        return TheBuilder->CreateCall(F, Vals, "binop");
+                return TheBuilder->CreateUIToFP(C, llvm::Type::getDoubleTy(*TheContext), "booltmp");
+            }
+            default:
+                break;
+            }
+
+            auto F = getFunction(std::string("binary") + expr.getOp(), "binary operator %1% not found!");
+
+            llvm::Value *Vals[] = {L, R};
+            return TheBuilder->CreateCall(F, Vals, "binop");
+        }
     }
 
     llvm::Value *CodeGenerator::operator()(CallExprAST const &expr)
     {
+        debugInfo_->emitLocation(*TheBuilder, expr.getLocation());
+
         // Look up the name in the global module table.
         llvm::Function *CalleeF = getFunction(expr.getCallee(), "Unknown function referenced: %1%");
 
@@ -156,6 +178,8 @@ namespace kaleidoscope
 
     llvm::Value *CodeGenerator::operator()(IfExprAST const &expr)
     {
+        debugInfo_->emitLocation(*TheBuilder, expr.getLocation());
+
         auto conditionValue = (*this)(expr.getCondition());
         auto condition = getBoolCondition(conditionValue, "ifcond");
 
@@ -189,8 +213,10 @@ namespace kaleidoscope
     llvm::Value *CodeGenerator::operator()(ForExprAST const &expr)
     {
         auto TheFunction = TheBuilder->GetInsertBlock()->getParent();
-
         auto loopVarSpace = createScopedVariable(TheFunction, expr.getVarName());
+
+        debugInfo_->emitLocation(*TheBuilder, expr.getLocation());
+
         auto startVal = (*this)(expr.getStart());
         TheBuilder->CreateStore(startVal, loopVarSpace);
 
@@ -240,6 +266,7 @@ namespace kaleidoscope
             }
         }
 
+        debugInfo_->emitLocation(*TheBuilder, expr.getLocation());
         return (*this)(expr.getBody());
     }
 
@@ -302,14 +329,23 @@ namespace kaleidoscope
             TheBuilder->SetInsertPoint(entryBlock);
 
             {
+                DebugScope debugScope(*debugInfo_, *TheBuilder, F, expr.getProto());
                 SymbolScope functionScope(activeScope_);
+
+                int argIdx = 0;
                 for (auto &arg : F->args())
                 {
                     auto varSpace = createScopedVariable(F, arg.getName().str());
+                    debugInfo_->declareParameter(*TheBuilder, varSpace, arg.getName().str(), argIdx, expr.getProto().getLocation());
                     TheBuilder->CreateStore(&arg, varSpace);
                     functionScope.tryDeclare(std::string(arg.getName()), varSpace);
+
+                    ++argIdx;
                 }
 
+                debugInfo_->emitLocation(*TheBuilder, std::visit([](ASTBase const &ast)
+                                                                 { return ast.getLocation(); },
+                                                                 expr.getBody()));
                 llvm::Value *bodyCode = (*this)(expr.getBody());
                 TheBuilder->CreateRet(bodyCode);
             }

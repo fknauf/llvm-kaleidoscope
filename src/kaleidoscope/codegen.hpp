@@ -2,10 +2,12 @@
 #define INCLUDED_KALEIDOSCOPE_CODEGEN_HPP
 
 #include "ast.hpp"
+#include "debug.hpp"
 #include "error.hpp"
 #include "symbols.hpp"
 #include "parser.hpp"
 
+#include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/Value.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/IRBuilder.h>
@@ -28,7 +30,7 @@ namespace kaleidoscope
     class CodeGenerator
     {
     public:
-        CodeGenerator(Parser &p, llvm::DataLayout dataLayout = llvm::DataLayout(""));
+        CodeGenerator(Parser &p, llvm::DataLayout dataLayout = llvm::DataLayout(""), std::string const &moduleName = "module");
 
         llvm::Value *operator()(ExprAST const &expr);
         llvm::Value *operator()(NumberExprAST const &expr);
@@ -46,7 +48,7 @@ namespace kaleidoscope
         llvm::Module &getModule() { return *TheModule; }
         llvm::Module const &getModule() const { return *TheModule; }
 
-        llvm::orc::ThreadSafeModule stealModule();
+        llvm::orc::ThreadSafeModule stealModule(std::string const &newModuleName = "module");
 
         void registerExtern(PrototypeAST ast);
 
@@ -64,6 +66,7 @@ namespace kaleidoscope
         std::unique_ptr<llvm::LLVMContext> TheContext;
         std::unique_ptr<llvm::IRBuilder<>> TheBuilder;
         std::unique_ptr<llvm::Module> TheModule;
+        std::unique_ptr<DebugInfo> debugInfo_;
 
         SymbolTable globalSymbols_;
         SymbolTable *activeScope_;
