@@ -16,7 +16,7 @@ namespace kaleidoscope
     class DebugInfo
     {
     public:
-        DebugInfo(llvm::Module &module);
+        DebugInfo(llvm::Module &module, bool disableDebug = false);
 
         void enterFunction(llvm::IRBuilder<> &irBuilder, llvm::Function *F, PrototypeAST const &proto);
         void exitScope();
@@ -30,6 +30,8 @@ namespace kaleidoscope
 
     private:
         llvm::DISubroutineType *CreateFunctionType(unsigned NumArgs);
+
+        bool disableDebug_;
 
         std::unique_ptr<llvm::DIBuilder> builder_;
         llvm::DIFile *file_;

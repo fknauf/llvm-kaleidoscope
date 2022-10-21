@@ -82,7 +82,7 @@ namespace
                 throw std::runtime_error(ec.message());
             }
 
-            objWriter_.writeModuleToStream(dest, codegen_.getModule(), fileType);
+            objWriter_.writeModuleToStream(dest, *codegen_.finalizeModule().getModuleUnlocked(), fileType);
         }
 
     private:

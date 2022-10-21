@@ -50,7 +50,7 @@ namespace
     public:
         DebugInfoHandler(Parser &p)
             : jit_(ExitOnErr(KaleidoscopeJIT::Create())),
-              codegen_(p, jit_->getDataLayout())
+              codegen_(p, jit_->getDataLayout(), "module", false)
         {
         }
 

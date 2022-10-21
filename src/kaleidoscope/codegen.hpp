@@ -30,7 +30,7 @@ namespace kaleidoscope
     class CodeGenerator
     {
     public:
-        CodeGenerator(Parser &p, llvm::DataLayout dataLayout = llvm::DataLayout(""), std::string const &moduleName = "module");
+        CodeGenerator(Parser &p, llvm::DataLayout dataLayout = llvm::DataLayout(""), std::string const &moduleName = "module", bool disableDebug = true);
 
         llvm::Value *operator()(ExprAST const &expr);
         llvm::Value *operator()(NumberExprAST const &expr);
@@ -63,6 +63,8 @@ namespace kaleidoscope
         std::unique_ptr<llvm::LLVMContext> TheContext;
         std::unique_ptr<llvm::IRBuilder<>> TheBuilder;
         std::unique_ptr<llvm::Module> TheModule;
+
+        bool disableDebug_;
         std::unique_ptr<DebugInfo> debugInfo_;
 
         SymbolTable globalSymbols_;

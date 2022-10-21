@@ -19,10 +19,11 @@ namespace kaleidoscope
     {
     }
 
-    CodeGenerator::CodeGenerator(Parser &p, llvm::DataLayout dataLayout, std::string const &moduleName)
+    CodeGenerator::CodeGenerator(Parser &p, llvm::DataLayout dataLayout, std::string const &moduleName, bool disableDebug)
         : TheParser(p),
           dataLayout(std::move(dataLayout)),
           TheContext(std::make_unique<llvm::LLVMContext>()),
+          disableDebug_(disableDebug),
           globalSymbols_(nullptr),
           activeScope_(&globalSymbols_)
     {
@@ -44,10 +45,7 @@ namespace kaleidoscope
         TheModule.swap(mod);
         TheBuilder = std::make_unique<llvm::IRBuilder<>>(*TheContext);
 
-        TheModule->addModuleFlag(llvm::Module::Warning, "Debug Info Version", llvm::DEBUG_METADATA_VERSION);
-        // TheModule->addModuleFlag(llvm::Module::Warning, "CodeView", 1);
-
-        debugInfo_ = std::make_unique<DebugInfo>(*TheModule);
+        debugInfo_ = std::make_unique<DebugInfo>(*TheModule, disableDebug_);
 
         return llvm::orc::ThreadSafeModule(std::move(mod), std::move(ctx));
     }
